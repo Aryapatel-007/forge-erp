@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #f4f4f1;
+  --color-card: #ffffff;
+  --color-ink: #1b2120;
+  --color-steel: #5f6967;
+  --color-line: #e4e4df;
+  --color-line-strong: #cfd0ca;
+  --color-rail: #171c1b;
+  --color-rail-text: #c7cecc;
+  --color-accent: #0e5f58;
+  --color-accent-strong: #0a4b45;
+  --color-accent-soft: #e0efec;
+  --color-spark: #e4601a;
+  --color-ok: #1b7443;
+  --color-ok-soft: #e1f2e8;
+  --color-warn: #96510a;
+  --color-warn-soft: #fbeedb;
+  --color-danger: #ae2a20;
+  --color-danger-soft: #fae6e4;
+  --font-sans: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+}
+
+html, body, #root { height: 100%; }
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-text-size-adjust: 100%;
+}
+
+.num { font-variant-numeric: tabular-nums; }
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Wide tables turn into cards on a phone. A printed page always gets the table. */
+.narrow-only { display: none; }
+@media screen and (max-width: 767px) {
+  .wide-only { display: none; }
+  .narrow-only { display: block; }
+}
+
+input, select, textarea { font-size: 16px; }
+@media (min-width: 768px) {
+  input, select, textarea { font-size: 14px; }
+}
+
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  body { background: #fff; font-size: 11px; }
+  .no-print { display: none !important; }
+  html, body, #root, main { height: auto !important; overflow: visible !important; }
+}

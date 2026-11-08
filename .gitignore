@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+backups/
+packaging/windows/build/
+packaging/windows/out/

@@ -1,0 +1,36 @@
+FORGE ERP: BEFORE YOU INSTALL
+
+What setup does
+ - Installs Forge ERP in the folder you choose.
+ - Downloads Node.js 22.23.4 (36 MB) from nodejs.org and MongoDB 7.0.14 (620 MB)
+   from mongodb.com. Each download is checked against the checksum its maker publishes,
+   and is refused if it does not match. This computer needs internet while installing.
+ - Installs the Microsoft Visual C++ runtime that MongoDB needs, if it is not already there.
+ - Runs Forge as two Windows services, "Forge ERP" and "Forge ERP database", which start
+   with Windows. Open Forge from the desktop or the Start menu at http://localhost:4100
+ - Keeps your data, settings, logs and backups in C:\ProgramData\Forge ERP
+   Uninstalling asks before it deletes any of that.
+
+Before you rely on it
+ - This setup program is not signed with a code-signing certificate, so Windows SmartScreen
+   may warn you. Choose "More info", then "Run anyway", only if you got this file from
+   someone you trust.
+ - Backups are made every day into the data folder above. Copy them to another disk or a
+   cloud folder. A backup on the same disk does not survive losing that disk.
+ - Have your chartered accountant check the GST, TDS and payroll settings before real use.
+
+Requirements
+ - 64-bit Windows 10 or 11, or Windows Server 2016 or later.
+ - About 1 GB free for the program, and space for your data.
+ - Administrator rights to install.
+
+Licences
+ - Forge ERP belongs to the company that commissioned it, and is provided as is.
+ - Node.js is distributed by the OpenJS Foundation under the MIT licence and others.
+   Setup downloads it from nodejs.org.
+ - MongoDB Community Server is distributed by MongoDB, Inc. under the Server Side Public
+   License. Setup downloads it from mongodb.com. It is not included in this file.
+ - The Microsoft Visual C++ Redistributable is distributed by Microsoft under its own
+   licence terms, and comes from the MongoDB download.
+ - WinSW, which runs Forge as a service, is included under the MIT licence. Its licence is
+   in the service folder after installing.
