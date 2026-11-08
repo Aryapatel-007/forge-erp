@@ -27,3 +27,7 @@ npm start
 
 Connect the app as `forge_app`. That database role can only read and insert on the
 ledgers, so nothing can rewrite the books, not even a bug or a stolen password.
+
+## Licence
+
+MIT. See [LICENSE](LICENSE). Copyright (c) 2026 Arya Patel.

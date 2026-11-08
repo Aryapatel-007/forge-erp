@@ -2,6 +2,7 @@
   "name": "forge-erp-server",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "main": "server.js",
   "scripts": {

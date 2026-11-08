@@ -25,7 +25,8 @@ Requirements
  - Administrator rights to install.
 
 Licences
- - Forge ERP belongs to the company that commissioned it, and is provided as is.
+ - Forge ERP is released under the MIT licence, copyright (c) 2026 Arya Patel, and is
+   provided as is, without warranty. The full licence is in the LICENSE file of its source.
  - Node.js is distributed by the OpenJS Foundation under the MIT licence and others.
    Setup downloads it from nodejs.org.
  - MongoDB Community Server is distributed by MongoDB, Inc. under the Server Side Public
