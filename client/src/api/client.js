@@ -65,6 +65,7 @@ export const get = async (path) => (await api(path)).data;
 export const getList = (path) => api(path);
 export const post = async (path, body = {}) => (await api(path, { method: 'POST', body })).data;
 export const patch = async (path, body) => (await api(path, { method: 'PATCH', body })).data;
+export const put = async (path, body) => (await api(path, { method: 'PUT', body })).data;
 export const del = async (path) => (await api(path, { method: 'DELETE' })).data;
 
 export const queryString = (params) => {
@@ -103,4 +104,40 @@ export async function saveJson(path, filename) {
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+// Files in and out, with the same one-time refresh as api() when the session has expired.
+async function rawFetch(path, init = {}) {
+  const go = () => fetch(`/api/v1${path}`, { ...init, headers: { ...(init.headers ?? {}), authorization: `Bearer ${accessToken}` } });
+  let response = await go();
+  if (response.status === 401) {
+    const parsed = await response.clone().json().catch(() => null);
+    if (parsed?.error?.code === 'TOKEN_EXPIRED') {
+      await refreshSession();
+      response = await go();
+    }
+  }
+  return response;
+}
+
+export async function fetchBlob(path) {
+  const response = await rawFetch(path);
+  if (!response.ok) throw new ApiError(response.status, await response.json().catch(() => null));
+  return response.blob();
+}
+
+export async function sendRaw(path, file) {
+  const response = await rawFetch(path, { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: file });
+  const parsed = await response.json().catch(() => null);
+  if (!response.ok) throw new ApiError(response.status, parsed);
+  return parsed.data;
+}
+
+export async function downloadBlob(path, filename) {
+  const url = URL.createObjectURL(await fetchBlob(path));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

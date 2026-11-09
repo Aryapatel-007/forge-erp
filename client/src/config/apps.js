@@ -52,8 +52,9 @@ export const APPS = [
     tint: '#5b4fa8',
     blurb: 'Items, bills of material and how things are made',
     modules: [],
-    process: ['items', 'boms', 'Routing', 'StandardCostRollup'],
+    process: [{ to: '/vault', label: 'Drawing vault', perm: 'vault.read' }, 'items', 'boms', 'Routing', 'StandardCostRollup'],
     sections: [
+      { title: 'Drawings', items: [{ to: '/vault', label: 'Drawing vault', perm: 'vault.read' }, { to: '/vault/admin', label: 'Vault access and set-up', perm: 'vault.admin' }] },
       { title: 'Product data', items: ['items', 'boms', 'ItemAlternative', 'ItemVariantGenerator'] },
       { title: 'Process', items: ['Routing', 'Operation', 'Workstation'] },
       { title: 'Changes and cost', items: ['BomUpdateTool', 'StandardCostRollup', 'ItemStandardCost'] },
@@ -237,8 +238,9 @@ export const APPS = [
     modules: ['setup', 'platform'],
     process: [],
     sections: [
+      { title: 'Maintainer', items: [{ to: '/maintainer', label: 'Maintainer home', perm: 'settings.write' }, { to: '/users', label: 'Accounts', perm: 'users.manage' }, { to: '/maintainer/features', label: 'Features on and off', perm: 'settings.write' }, { to: '/maintainer/roles', label: 'What each role sees', perm: 'settings.write' }, { to: '/vault/admin', label: 'Vault access', perm: 'vault.admin' }] },
       { title: 'Company', items: [{ to: '/going-live', label: 'Going live', perm: 'settings.write' }, { to: '/settings', label: 'Company settings', perm: 'settings.write' }, 'LetterHead', 'PrintFormat', 'Translation'] },
-      { title: 'People and access', items: [{ to: '/users', label: 'Users', perm: 'users.manage' }, { to: '/role-permissions', label: 'Role permissions', perm: 'users.manage' }, 'UserPermission', 'AuthorizationRule'] },
+      { title: 'People and access', items: [{ to: '/departments', label: 'Who sees what', perm: 'users.manage' }, { to: '/users', label: 'Users', perm: 'users.manage' }, { to: '/role-permissions', label: 'Role permissions', perm: 'users.manage' }, 'UserPermission', 'AuthorizationRule'] },
       { title: 'Automation', items: ['Workflow', 'NotificationRule', 'AutoRepeat', 'EmailDigest', { to: '/custom-fields', label: 'Custom fields', perm: 'settings.write' }] },
       { title: 'System', items: [{ to: '/system', label: 'Jobs, email and backups', perm: 'settings.write' }, { to: '/audit', label: 'Audit trail', perm: 'audit.read' }, 'RenameTool'] },
     ],
@@ -283,6 +285,8 @@ function resolve(token, can, meta) {
   const config = RESOURCES[token];
   return config && can(config.read) ? { to: `/${token}`, label: config.title, token } : null;
 }
+
+export const resolveToken = resolve;
 
 const tokensIn = (app) => [...app.sections.flatMap((s) => s.items), ...app.setup, ...app.process, ...app.reports];
 

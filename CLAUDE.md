@@ -40,4 +40,12 @@ the API, one test file at a time.
   nothing outside the session.
 - A new document type goes in `client/src/config/resources.js`, not in a new screen.
 - `client/src/config/apps.js` decides where each screen lives. Put new screens there.
+- `client/src/config/departments.js` decides what each department sees. A screen a
+  department uses daily goes in its entry there.
 - A new check in `reportService.integrity` needs a test that breaks it on purpose.
+- The drawing vault (`services/vaultService.js`, `routes/vault.js`, `models/vault.js`) is
+  not a document type: files are GridFS blobs in the `vault` bucket. Every way in goes
+  through `ingest()`. Never delete a version.
+- `requirePerm` is async and goes through `services/policyService.js`: a switched-off
+  feature or a role screen can take a permission away. Use `allowed()` from there, not
+  `can()`, when deciding what a person may do.

@@ -179,3 +179,76 @@ The structure follows what the large ERPs share. It is not a copy of any of them
 placed still appears in the area for its module, so nothing is ever lost, only less well placed.
 Daily work goes in an area's menus, and lookup lists and rules go under its Setup. On a phone,
 wide tables become cards, menus rise from the bottom, and a bottom bar holds the essentials.
+
+### Departments
+
+Each department sees one page and nothing else in its menus: `client/src/config/departments.js`.
+Learned from ERPNext, which gives every module a workspace of shortcuts, figures and links, but
+leaves which role sees which workspace hard to control. Here the department is the unit:
+
+- A person's role is their department. They open to its page: "Do now" buttons, what is
+  waiting on them, their lists and their reports. Search and the + button keep to it.
+- Management and Admin see the whole company, a card per department, and the Departments page,
+  which shows exactly what each department sees and opens any department's page as they see it.
+- This decides what is shown, not what is allowed. The server checks permissions on every
+  request, as ERPNext's own documentation warns that hiding a workspace is not security.
+
+## 11. The drawing vault
+
+A free stand-in for SOLIDWORKS PDM and AutoCAD vaults, built into Forge.
+
+- **One pool.** Every CAD file lives at a path in the vault, such as
+  `Projects/NKP-LF4/Frame/LF4-FR-001.dxf`. The same path from any source is the same file.
+  Paths ignore case, as Windows does.
+- **Automatic first.** The server reads watched folders every minute (the `vault-watch`
+  job). Unchanged files are skipped by size and time. A file changed in the last 5 seconds
+  waits, in case it is still saving. A designer's own PC runs a PowerShell sync file with
+  its own key, which can only send files and read the locked list. Manual upload goes
+  through the same `ingest()`.
+- **Versions.** A new version only when the bytes change (SHA-256). Versions are never
+  deleted. A file gone from disk is marked missing, never removed, and only after a
+  complete walk, so an offline share proves nothing.
+- **States.** Being worked on → In review → Released (revision A, B, C, skipping I and O)
+  → Obsolete. Check-out says who is changing it. A released file cannot change: a new
+  copy is turned away and noted until someone starts a new revision. Released files are
+  made read-only on the drive and on synced PCs. Every state change goes in the audit chain.
+- **Links.** The file name without its extension is the drawing number. It links to the
+  item whose drawing number or code matches, and to BOM lines with that drawing number.
+  Release writes the revision onto the item.
+- **Pictures** without CAD software: the thumbnail inside a DWG, a DXF drawn as SVG, and
+  the PNG preview inside SOLIDWORKS files. Pictures and downloads are served sandboxed,
+  and downloads always as attachments.
+- **On each designer's PC**, like a PDM vault view: a "Forge Vault" folder at the top of
+  File Explorer, so it is in every SOLIDWORKS and AutoCAD Open and Save window. A plain
+  PowerShell program (`server/assets/ForgeVaultSync.ps1`, filled in per PC with its key)
+  copies every vault file in and keeps them current. It keeps files read-only unless
+  checked out to that PC's person, and sends what that person saves. A copy that changed
+  without a check-out is set aside, never sent, and the vault copy takes its place. The
+  PC kit adds Explorer badges and a Forge tab and Task Pane inside SOLIDWORKS. Both build
+  on the PC from source with the compiler Windows ships. A PC's key can only send files
+  and read its folder. Check-outs and releases are done as the person it is linked to,
+  with that person's permissions read fresh.
+
+**Push and pull (replaces automatic copying).** Nothing moves by itself. A push starts with a
+message (`VaultPush`, like a commit) and each file names the version it was changed from;
+if the vault has moved on, the push is refused as BEHIND and the person pulls first.
+Released files refuse pushes until a new revision. Locks (the old check-out) stop others
+pushing. Who may pull and push is decided by the maintainer (the ADMIN role): rules for a
+person or a role on a folder (`VaultRule`), and tasks (`VaultTask`) that give push on named
+paths while open. A PC works as its person. Folders on the server are an import the
+maintainer runs, or lets run every minute.
+
+## 12. The maintainer, features and role screens
+
+One app for everyone. Sign-in decides the role, the role decides the screens. The ADMIN
+role is shown as **Maintainer**: makes accounts, switches features off, and chooses what
+each role sees. `server/config/features.js` lists the parts that can be switched off, by
+engine module, permission and path. A switched-off part is gone from every screen and
+refused by the server (`FEATURE_OFF`), for everyone, and its data is kept.
+`services/policyService.js` holds the switches (collection `policies`) behind a 5-second
+cache. Role screens hide items from a role's department page. Hiding is also enforced:
+the screen's permissions, document types and reports are refused for that role. The
+maintainer is never limited. Roles: Maintainer, Management, Sales, Design and
+engineering, Purchase, Stores, Production, Shop floor operator (new: jobs, time, released
+drawings, problems; no prices, customers or people), Quality, Accounts, Service, People
+(HR), and Customer or supplier (portal).

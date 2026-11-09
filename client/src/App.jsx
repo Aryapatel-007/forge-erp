@@ -1,10 +1,10 @@
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { Shell } from './components/Shell.jsx';
 import { NotFoundPage } from './components/NotFoundPage.jsx';
 import { Spinner } from './components/ui.jsx';
 import { useAuth } from './context/Auth.jsx';
 import { LoginPage } from './features/LoginPage.jsx';
-import { AppHomePage, AppsPage, HomePage } from './features/HomePage.jsx';
+import { AppHomePage, AppsPage, DepartmentPreview, DepartmentsPage, HomePage } from './features/HomePage.jsx';
 import { BuildPage } from './features/BuildPage.jsx';
 import { FatPage } from './features/FatPage.jsx';
 import { ReportPage, ReportsIndex } from './features/ReportsPage.jsx';
@@ -20,6 +20,8 @@ import { DashboardsPage, DashboardView } from './features/DashboardsPage.jsx';
 import { PortalApp } from './features/PortalApp.jsx';
 import { PublicFormPage } from './features/PublicFormPage.jsx';
 import { SetupGuide } from './features/SetupGuide.jsx';
+import { VaultAdminPage, VaultFilePage, VaultPage } from './features/VaultPages.jsx';
+import { FeaturesPage, MaintainerHome, RoleScreenPage, RolesPage } from './features/MaintainerPages.jsx';
 import { SitePage } from './features/SitePages.jsx';
 
 export function App() {
@@ -36,6 +38,8 @@ export function App() {
       <Route element={<Shell />}>
         <Route index element={<HomePage />} />
         <Route path="apps" element={<AppsPage />} />
+        <Route path="departments" element={<DepartmentsPage />} />
+        <Route path="dept/:role" element={<DepartmentPreview />} />
         <Route path="app/:app" element={<AppHomePage />} />
         <Route path="app/:app/:tab" element={<AppHomePage />} />
         <Route path="builds/:id" element={<BuildPage />} />
@@ -57,6 +61,14 @@ export function App() {
         <Route path="dash" element={<DashboardsPage />} />
         <Route path="dash/:id" element={<DashboardView />} />
         <Route path="going-live" element={<SetupGuide />} />
+        <Route path="vault" element={<VaultPage />} />
+        <Route path="vault/admin" element={<VaultAdminPage />} />
+        <Route path="vault/setup" element={<Navigate to="/vault/admin" replace />} />
+        <Route path="maintainer" element={<MaintainerHome />} />
+        <Route path="maintainer/features" element={<FeaturesPage />} />
+        <Route path="maintainer/roles" element={<RolesPage />} />
+        <Route path="maintainer/roles/:role" element={<RoleScreenPage />} />
+        <Route path="vault/:id" element={<VaultFilePage />} />
         <Route path="print/:resource/:id" element={<PrintPage />} />
         <Route path=":resource" element={<ListPage />} />
         <Route path=":resource/new" element={<FormPage />} />

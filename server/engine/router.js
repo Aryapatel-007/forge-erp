@@ -8,6 +8,7 @@ import { allTypes, getType, metaOf } from './registry.js';
 import { accessFor, allRoles, assertLinksInScope, clearAccessCache, scopeFilter } from './access.js';
 import { cancelDoc, connections, createDoc, deleteDoc, resolveLinks, runWorkflow, setSelectField, submitDoc, updateDoc, workflowOptions } from './documents.js';
 import { runBuilder, runReport, reportsMeta } from './reports.js';
+import { reportBlocked } from '../services/policyService.js';
 import { exportCsv, importCsv } from './importExport.js';
 import { withTxn } from '../utils/txn.js';
 import { badRequest, forbidden, notFound, rule } from '../utils/errors.js';
@@ -254,7 +255,9 @@ function recordRoutes() {
       if (access.read) out.push(metaOf(type, access));
     }
     const custom = await CustomField.find().lean();
-    ok(res, { doctypes: out, reports: reportsMeta(req.user.role), custom: custom.map(({ _id, ...rest }) => rest) });
+    const reports = [];
+    for (const report of reportsMeta(req.user.role)) if (!(await reportBlocked(report, req.user.role))) reports.push(report);
+    ok(res, { doctypes: out, reports, custom: custom.map(({ _id, ...rest }) => rest) });
   });
 
   r.get('/lookup/User', async (req, res) => {

@@ -7,6 +7,7 @@ import { getType } from './registry.js';
 import { parseFields } from './dsl.js';
 import { AppError, badRequest, forbidden, notFound } from '../utils/errors.js';
 import { isLimited, scopeFilter, scopeFilterForModel } from './access.js';
+import { reportBlocked } from '../services/policyService.js';
 
 const reports = new Map();
 
@@ -77,6 +78,7 @@ export async function runReport(key, query, user) {
   const def = reports.get(key);
   if (!def) throw notFound('That report');
   if (!def.roles.includes(user.role) && user.role !== 'ADMIN') throw forbidden();
+  if (await reportBlocked(def, user.role)) throw forbidden('This report is switched off, or not given to your role.');
   const filters = {};
   for (const field of def.filterFields) {
     const value = query[field.key];

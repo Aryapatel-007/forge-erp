@@ -1,12 +1,14 @@
 // Who may do what. The server checks this on every route.
 export const ROLES = Object.freeze([
   'ADMIN', 'MANAGEMENT', 'SALES', 'ENGINEERING', 'PURCHASE', 'STORES',
-  'PRODUCTION', 'QUALITY', 'ACCOUNTS', 'SERVICE', 'HR', 'PORTAL',
+  'PRODUCTION', 'OPERATOR', 'QUALITY', 'ACCOUNTS', 'SERVICE', 'HR', 'PORTAL',
 ]);
 // A portal sign-in belongs to a customer or supplier, not to staff.
 export const STAFF_ROLES = Object.freeze(ROLES.filter((role) => role !== 'PORTAL'));
 
 const everyone = STAFF_ROLES;
+// The shop floor does not see customers, suppliers or the chart of accounts.
+const deskRoles = STAFF_ROLES.filter((role) => role !== 'OPERATOR');
 const office = ['ADMIN', 'MANAGEMENT'];
 
 export const PERMISSIONS = Object.freeze({
@@ -17,11 +19,11 @@ export const PERMISSIONS = Object.freeze({
 
   'items.read': everyone,
   'items.write': [...office, 'ENGINEERING', 'PURCHASE', 'STORES'],
-  'parties.read': everyone,
+  'parties.read': deskRoles,
   'parties.write': [...office, 'SALES', 'PURCHASE', 'ACCOUNTS'],
   'warehouses.read': everyone,
   'warehouses.write': [...office, 'STORES'],
-  'accounts.read': everyone,
+  'accounts.read': deskRoles,
   'accounts.write': [...office, 'ACCOUNTS'],
 
   'boms.read': everyone,
@@ -51,13 +53,13 @@ export const PERMISSIONS = Object.freeze({
   'issues.write': [...office, 'STORES', 'PRODUCTION'],
   'jobWork.read': [...office, 'PURCHASE', 'STORES', 'PRODUCTION', 'ACCOUNTS'],
   'jobWork.write': [...office, 'PURCHASE', 'STORES'],
-  'time.read': [...office, 'PRODUCTION', 'ACCOUNTS'],
-  'time.write': [...office, 'PRODUCTION'],
+  'time.read': [...office, 'PRODUCTION', 'OPERATOR', 'ACCOUNTS'],
+  'time.write': [...office, 'PRODUCTION', 'OPERATOR'],
 
   'inspections.read': [...office, 'QUALITY', 'STORES', 'PURCHASE'],
   'inspections.write': [...office, 'QUALITY'],
-  'ncrs.read': [...office, 'QUALITY', 'PRODUCTION', 'ENGINEERING', 'PURCHASE', 'SERVICE'],
-  'ncrs.write': [...office, 'QUALITY', 'PRODUCTION', 'SERVICE'],
+  'ncrs.read': [...office, 'QUALITY', 'PRODUCTION', 'OPERATOR', 'ENGINEERING', 'PURCHASE', 'SERVICE'],
+  'ncrs.write': [...office, 'QUALITY', 'PRODUCTION', 'OPERATOR', 'SERVICE'],
   'ncrs.close': [...office, 'QUALITY'],
   'fat.read': [...office, 'QUALITY', 'PRODUCTION', 'SALES', 'SERVICE'],
   'fat.write': [...office, 'QUALITY'],
@@ -74,6 +76,12 @@ export const PERMISSIONS = Object.freeze({
 
   'service.read': [...office, 'SERVICE', 'SALES', 'QUALITY'],
   'service.write': [...office, 'SERVICE'],
+
+  // The drawing vault. Everyone can look at drawings; engineering changes and releases them.
+  'vault.read': everyone,
+  'vault.write': [...office, 'ENGINEERING'],
+  'vault.release': [...office, 'ENGINEERING'],
+  'vault.admin': ['ADMIN'],
 
   'reports.finance': [...office, 'ACCOUNTS'],
   'reports.operations': everyone,

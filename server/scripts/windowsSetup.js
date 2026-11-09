@@ -1,4 +1,4 @@
-// Run by the Windows setup program, not by hand. Each step is safe to run again, so an
+// Run by the Windows and Mac setup programs, not by hand. Each step is safe to run again, so an
 // update or a repair reuses what is there and never replaces the database or the secrets.
 //   node windowsSetup.js prepare     --data <dir> [--host 127.0.0.1|0.0.0.0|keep]
 //   node windowsSetup.js replset     --data <dir>
@@ -51,7 +51,7 @@ function prepare() {
   const host = option('host', 'keep');
   if (host !== 'keep') env.set('HOST', host);
   else keep('HOST', '127.0.0.1');
-  const text = ['# Forge ERP settings. Written by setup. Keep this file private: it holds the sign-in secrets.', ...[...env].map(([key, value]) => `${key}=${value}`), ''].join('\r\n');
+  const text = ['# Forge ERP settings. Written by setup. Keep this file private: it holds the sign-in secrets.', ...[...env].map(([key, value]) => `${key}=${value}`), ''].join('\n');
   fs.writeFileSync(envFile, text, { mode: 0o600 });
 
   // Rewritten every time, so a repair puts it right.
@@ -72,7 +72,7 @@ function prepare() {
     'replication:',
     '  replSetName: rs0',
     '',
-  ].join('\r\n'));
+  ].join('\n'));
   console.log(`Settings are in ${dataDir}.`);
 }
 

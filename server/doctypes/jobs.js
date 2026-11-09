@@ -17,6 +17,7 @@ import { addDays, addMonths, todayIst } from '../utils/dates.js';
 import { postDueDepreciation } from './assets.js';
 import { createBackup } from '../services/backupService.js';
 import { fetchExchangeRates, flushSms, readMailbox } from '../services/channelsService.js';
+import { scanAllWatches } from '../services/vaultService.js';
 
 const SYSTEM = { id: null, name: 'Scheduler', role: 'ADMIN' };
 const asDate = (now) => todayIst(now);
@@ -247,3 +248,7 @@ defineJob('backup', 1440, async () => {
 defineJob('email-in', 5, () => readMailbox());
 defineJob('sms-queue', 5, () => flushSms());
 defineJob('exchange-rates', 720, () => fetchExchangeRates());
+
+// The drawing vault reads its watched folders every minute. Unchanged files are skipped by
+// size and time, so a quiet folder costs one directory listing.
+defineJob('vault-watch', 1, async (now) => scanAllWatches(now.getTime()));

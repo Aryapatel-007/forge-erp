@@ -11,7 +11,7 @@ import { withTxn } from '../utils/txn.js';
 import { AppError, badRequest, notFound, rule } from '../utils/errors.js';
 import { todayIst, fyRange } from '../utils/dates.js';
 import { env, isProd } from '../config/env.js';
-import { permissionsFor } from '../config/permissions.js';
+import { effectivePermissions, featureGate, policyFor } from '../services/policyService.js';
 import { audit } from '../services/auditService.js';
 import { getSettings } from '../services/settingsService.js';
 import * as auth from '../services/authService.js';
@@ -27,6 +27,8 @@ import { einvoiceJson, ewayBillJson } from '../services/einvoiceService.js';
 import { quotePrice } from '../services/pricingService.js';
 import { engineRouter } from '../engine/router.js';
 import { portalRoutes, publicRoutes, viewRoutes } from './views.js';
+import { vaultAgentRoutes, vaultRoutes } from './vault.js';
+import { maintainerRoutes } from './maintainer.js';
 
 const requireObjectId2 = (req, _res, next) => {
   if (!mongoose.isValidObjectId(req.params.id)) throw badRequest('That id is not valid.');
@@ -35,26 +37,32 @@ const requireObjectId2 = (req, _res, next) => {
 
 const COOKIE = 'forgeRefresh';
 const cookieOptions = () => ({ httpOnly: true, secure: isProd, sameSite: 'lax', path: '/api/v1/auth', maxAge: env.REFRESH_TOKEN_DAYS * 86400000 });
-const publicUser = (u) => ({ id: String(u._id), name: u.name, email: u.email, role: u.role, permissions: permissionsFor(u.role) });
+// What the screens need about the person: their role, what they may do now (after the
+// maintainer's switches), and their role's screen choices.
+const publicUser = async (u) => ({
+  id: String(u._id), name: u.name, email: u.email, role: u.role,
+  permissions: await effectivePermissions(u.role),
+  policy: await policyFor(u.role),
+});
 
 function authRoutes() {
   const r = Router();
   r.post('/login', loginLimiter, validate(S.loginSchema), async (req, res) => {
     const { user, accessToken, refreshToken } = await auth.login(req.body);
     res.cookie(COOKIE, refreshToken, cookieOptions());
-    ok(res, { accessToken, user: publicUser(user) });
+    ok(res, { accessToken, user: await publicUser(user) });
   });
   r.post('/refresh', requireCsrfHeader, async (req, res) => {
     const { user, accessToken, refreshToken } = await auth.refresh(req.cookies?.[COOKIE]);
     res.cookie(COOKIE, refreshToken, cookieOptions());
-    ok(res, { accessToken, user: publicUser(user) });
+    ok(res, { accessToken, user: await publicUser(user) });
   });
   r.post('/logout', requireCsrfHeader, async (req, res) => {
     await auth.logout(req.cookies?.[COOKIE]);
     res.clearCookie(COOKIE, { path: '/api/v1/auth' });
     ok(res, { signedOut: true });
   });
-  r.get('/me', authenticate, async (req, res) => ok(res, publicUser({ ...req.user, _id: req.user.id })));
+  r.get('/me', authenticate, async (req, res) => ok(res, await publicUser({ ...req.user, _id: req.user.id })));
   r.post('/change-password', authenticate, validate(S.changePasswordSchema), async (req, res) => {
     await auth.changePassword(req.user.id, req.body);
     res.clearCookie(COOKIE, { path: '/api/v1/auth' });
@@ -318,7 +326,10 @@ function reportRoutes() {
 export function apiRouter() {
   const api = Router();
   api.get('/health', (_req, res) => ok(res, { status: 'ok' }));
+  // Parts of Forge the maintainer switched off, reached by path rather than permission.
+  api.use(featureGate);
   api.use('/auth', authRoutes());
+  api.use('/maintainer', maintainerRoutes());
   api.use('/admin', adminRoutes());
 
   api.use('/items', masterRouter({ Model: Item, label: 'Item', read: 'items.read', write: 'items.write', createSchema: S.itemSchema, updateSchema: S.itemUpdateSchema, searchFields: ['code', 'name', 'drawingNo'], filterFields: ['type', 'isActive'] }));
@@ -395,6 +406,8 @@ export function apiRouter() {
   api.use('/public', publicRoutes());
   api.use('/portal', portalRoutes());
   api.use('/views', viewRoutes());
+  api.use('/vault', vaultRoutes());
+  api.use('/vault-agent', vaultAgentRoutes());
   api.use(engineRouter());
   api.use((_req, res) => res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'That address does not exist.' } }));
   return api;

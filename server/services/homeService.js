@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { accessFor, isLimited, scopeFilter, scopeFilterForModel } from '../engine/access.js';
 import { getType } from '../engine/registry.js';
 import { PERMISSIONS } from '../config/permissions.js';
+import { allowed as policyAllows } from './policyService.js';
 import { Notification, Todo } from '../models/platform.js';
 import { dashboard } from './reportService.js';
 import { addDays, todayIst } from '../utils/dates.js';
@@ -61,7 +62,7 @@ const TILES = [
 const modelFor = (tile) => (tile.doctype ? getType(tile.doctype)?.Model : mongoose.models[tile.model]);
 
 async function allowed(tile, user) {
-  if (tile.perm) return (PERMISSIONS[tile.perm] ?? []).includes(user.role);
+  if (tile.perm) return policyAllows(user.role, tile.perm);
   return (await accessFor(tile.doctype, user.role)).read;
 }
 
@@ -89,7 +90,8 @@ export async function homeFor(user) {
     .map((tile, index) => (values[index] ? { key: tile.key, app: tile.app, kind: tile.kind, tone: tile.tone ?? 'neutral', label: tile.label, to: tile.to, ...values[index] } : null))
     .filter(Boolean);
 
-  const can = (perm) => (PERMISSIONS[perm] ?? []).includes(user.role);
+  const granted = new Set((await Promise.all(Object.keys(PERMISSIONS).map(async (perm) => ((await policyAllows(user.role, perm)) ? perm : null)))).filter(Boolean));
+  const can = (perm) => granted.has(perm);
   const [todos, unread] = await Promise.all([
     Todo.countDocuments({ assignedTo: user.id, isDone: { $ne: true } }).catch(() => 0),
     Notification.countDocuments({ userId: user.id, readAt: null }).catch(() => 0),
@@ -130,7 +132,7 @@ export const SEARCHABLE_CORE = [
 export async function searchCore(user, pattern) {
   const hits = [];
   for (const entry of SEARCHABLE_CORE) {
-    if (!(PERMISSIONS[entry.perm] ?? []).includes(user.role)) continue;
+    if (!(await policyAllows(user.role, entry.perm))) continue;
     const Model = mongoose.models[entry.model];
     if (!Model) continue;
     const scope = await scopeFilterForModel(user, Model);

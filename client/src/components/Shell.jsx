@@ -9,10 +9,30 @@ import { api, get, post, queryString } from '../api/client.js';
 import { useAuth } from '../context/Auth.jsx';
 import { useMeta } from '../context/Meta.jsx';
 import { allDestinations, appForPath, buildApps, createItems } from '../config/apps.js';
+import { buildDepartment, COMPANY_ROLES } from '../config/departments.js';
 import { currentLanguage, LANGUAGES, setLanguage } from '../i18n.js';
 import { formatDateTime } from '../utils/format.js';
 import { Icon } from './icons.jsx';
 import { Menu, MenuButton, MenuLink, MenuTitle, Select } from './ui.jsx';
+
+// The department this person works in, or null for Management and Admin.
+export function useDepartment() {
+  const { can, user } = useAuth();
+  const meta = useMeta();
+  return useMemo(() => (meta && user && !COMPANY_ROLES.has(user.role) ? buildDepartment(user.role, can, meta, user.policy) : null), [meta, user]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+// A department shown in the same bar as an area: its lists, and its reports as one menu.
+const departmentBar = (dept) => ({
+  key: dept.key,
+  label: dept.title,
+  icon: dept.icon,
+  tint: dept.tint,
+  homeTo: '/',
+  sections: [...dept.sections, ...(dept.reports.length ? [{ title: 'Reports', items: dept.reports }] : [])],
+  reports: [],
+  setup: [],
+});
 
 export function useApps() {
   const { can, user } = useAuth();
@@ -212,11 +232,11 @@ function AreaBar({ app }) {
   return (
     <div className="no-print border-b border-line bg-card">
       <nav aria-label={app.label} className="no-scrollbar mx-auto flex max-w-[1500px] items-center gap-0.5 overflow-x-auto px-3 md:overflow-visible md:px-5">
-        <Link to={`/app/${app.key}`} className="mr-2 flex shrink-0 items-center gap-2 py-1.5 pr-1">
+        <Link to={app.homeTo ?? `/app/${app.key}`} className="mr-2 flex shrink-0 items-center gap-2 py-1.5 pr-1">
           <span aria-hidden="true" className="inline-flex h-6 w-6 items-center justify-center rounded-md text-white" style={{ background: app.tint }}><Icon name={app.icon} size={14} /></span>
           <span className="text-sm font-semibold">{app.label}</span>
         </Link>
-        <NavLink to={`/app/${app.key}`} end className={({ isActive }) => tabClass(isActive)}>Overview</NavLink>
+        <NavLink to={app.homeTo ?? `/app/${app.key}`} end className={({ isActive }) => tabClass(isActive)}>{app.homeTo ? 'My work' : 'Overview'}</NavLink>
         {app.sections.map((section) => (section.items.length === 1 ? (
           <NavLink key={section.title} to={section.items[0].to} className={({ isActive }) => tabClass(isActive)}>{section.title}</NavLink>
         ) : (
@@ -248,13 +268,13 @@ function AreaBar({ app }) {
   );
 }
 
-function BottomBar({ onSearch, createItemsList, unread }) {
+function BottomBar({ onSearch, createItemsList, unread, menuLabel }) {
   const item = 'flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[11px]';
   const active = ({ isActive }) => `${item} ${isActive ? 'font-semibold text-accent' : 'text-steel'}`;
   return (
     <nav aria-label="Main" className="no-print fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-card pb-[env(safe-area-inset-bottom)] md:hidden">
       <NavLink to="/" end className={active}><Icon name="home" size={21} />Home</NavLink>
-      <NavLink to="/apps" className={active}><Icon name="grid" size={21} />Apps</NavLink>
+      <NavLink to="/apps" className={active}><Icon name="grid" size={21} />{menuLabel}</NavLink>
       <div className="flex flex-1 items-center justify-center">
         <CreateMenu
           items={createItemsList}
@@ -286,8 +306,14 @@ export function Shell() {
   const unread = notes.data?.meta?.unread ?? 0;
   const creatable = useMemo(() => (meta ? createItems(can, meta) : []), [meta, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const app = appForPath(apps, location.pathname, lastApp.current);
-  if (app) lastApp.current = app.key;
+  const dept = useDepartment();
+  const deptBar = useMemo(() => (dept ? departmentBar(dept) : null), [dept]);
+  // Someone in a department always has that department's bar. Everyone else gets the area
+  // the page belongs to.
+  const app = deptBar ?? appForPath(apps, location.pathname, lastApp.current);
+  if (app && !deptBar) lastApp.current = app.key;
+  const searchable = deptBar ? [deptBar] : apps;
+  const newItems = dept ? dept.tasks : creatable;
 
   useEffect(() => {
     const onKey = (event) => {
@@ -308,7 +334,7 @@ export function Shell() {
     <div className="flex h-full flex-col">
       <header className="no-print z-40 bg-rail text-white">
         <div className="mx-auto flex h-12 max-w-[1500px] items-center gap-1.5 px-3 md:px-5">
-          <div className="hidden md:block"><AppsMenu apps={apps} /></div>
+          {!dept && <div className="hidden md:block"><AppsMenu apps={apps} /></div>}
           <Link to="/" className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 font-bold tracking-wide hover:bg-white/10" aria-label="Forge home">
             <span aria-hidden="true" className="h-2.5 w-2.5 rotate-45 rounded-[2px] bg-spark" />
             FORGE
@@ -322,7 +348,7 @@ export function Shell() {
           </div>
           <div className="hidden md:block">
             <CreateMenu
-              items={creatable}
+              items={newItems}
               trigger={({ toggle, isOpen }) => <button type="button" aria-label="Create new" aria-expanded={isOpen} className={barButton} onClick={toggle}><Icon name="plus" /></button>}
             />
           </div>
@@ -334,8 +360,8 @@ export function Shell() {
       <main className="flex-1 overflow-y-auto pb-20 md:pb-6">
         <div className="mx-auto max-w-[1500px] p-3 md:p-5"><Outlet /></div>
       </main>
-      <BottomBar onSearch={() => setIsSearching(true)} createItemsList={creatable} unread={unread} />
-      {isSearching && <CommandSearch apps={apps} onClose={() => setIsSearching(false)} />}
+      <BottomBar onSearch={() => setIsSearching(true)} createItemsList={newItems} unread={unread} menuLabel={dept ? 'Menu' : 'Apps'} />
+      {isSearching && <CommandSearch apps={searchable} onClose={() => setIsSearching(false)} />}
     </div>
   );
 }

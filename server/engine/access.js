@@ -3,6 +3,7 @@
 import { RolePermission } from '../models/platform.js';
 import { STAFF_ROLES } from '../config/permissions.js';
 import { getType, modelOf } from './registry.js';
+import { doctypeBlocked } from '../services/policyService.js';
 
 const OFFICE = ['ADMIN', 'MANAGEMENT'];
 const MODULE_WRITERS = {
@@ -44,7 +45,16 @@ async function loadOverrides() {
   return overrides;
 }
 
+// The shop floor sees how things are made and checked, and books its own work. Nothing
+// about money, customers or people.
+const OPERATOR_READS = new Set(['manufacturing', 'quality', 'maintenance', 'projects']);
+const OPERATOR_WRITES = new Set(['JobCard', 'DowntimeEntry']);
+
 function defaults(type, role) {
+  if (role === 'OPERATOR') {
+    const write = OPERATOR_WRITES.has(type.name);
+    return { read: write || OPERATOR_READS.has(type.module) || type.readers === 'all', write, submit: write, cancel: false };
+  }
   const writers = type.writers ?? MODULE_WRITERS[type.module] ?? OFFICE;
   const canWrite = writers.includes(role);
   let canRead = canWrite;
@@ -57,6 +67,8 @@ function defaults(type, role) {
 export async function accessFor(doctype, role) {
   const type = getType(doctype);
   if (!type || role === 'PORTAL') return { read: false, write: false, submit: false, cancel: false };
+  // Switched off by the maintainer, or taken away from this role.
+  if (await doctypeBlocked(type, role)) return { read: false, write: false, submit: false, cancel: false };
   if (role === 'ADMIN') return { read: true, write: true, submit: true, cancel: true };
   const map = await loadOverrides();
   const row = map.get(`${doctype}|${role}`);

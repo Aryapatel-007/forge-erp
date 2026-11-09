@@ -1,0 +1,10 @@
+Other software that setup downloads
+
+- Node.js is distributed by the OpenJS Foundation under the MIT licence and others.
+  Setup downloads it from nodejs.org.
+- MongoDB Community Server is distributed by MongoDB, Inc. under the Server Side Public
+  License. Setup downloads it from mongodb.com. It is not included in this installer.
+
+This installer is not signed with an Apple Developer ID. macOS asks you to allow it in
+System Settings, Privacy and Security, the first time. Do that only if you got this file
+from someone you trust.

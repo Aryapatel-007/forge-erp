@@ -39,16 +39,37 @@ every session. Last updated 2026-11-08.
 | Reverse charge, imports, SEZ, blocked credit, exempt items, IRN, deductions, set-off, 2B, opening balances, GSTR-1, GSTR-3B, account books | `tests/gst.test.js` | 21 pass |
 | Work order depth, MRP, capacity, subcontracting, per-record limits, portal, web forms, backup and restore, CSV import, dashboards, approval limits, closed periods, HR and selling logic | `tests/depth.test.js` | 27 pass |
 | Limits on core documents, backward scheduling, OEE, standard cost, bulk submit, website, translations, POP3 mail, SMS, exchange rates, bank statements, Razorpay links, backup copy | `tests/channels.test.js` | 18 pass, against local stand-ins for outside services |
+| Drawing vault: pictures, push and pull with the version a change started from (BEHIND refused), access rules and tasks from the maintainer, locks, review and release, folder import, PCs working as their person, the PC kit | `tests/vault.test.js` | 11 pass |
+| Features switched off, role screens enforced on the server, the shop-floor operator role | `tests/policy.test.js` | 4 pass |
 | The server loads in production order | `tests/boot.test.js` | 2 pass |
 | Demo seed through the real services | Run on a throwaway database, then dropped | Works |
 | Client production build | `npm run build` | Compiles |
 | All 128 runner reports and the new routes on the running server, admin login | API calls | All respond, integrity OK |
 
-Tests run file by file against a real replica set: 187 in all, each passing on its last run.
+Tests run file by file against a real replica set: 202 in all, each passing on its last run. After the policy change, boot, engine, erp and depth were run again: all pass.
 `npm test` as one command has not been run.
 
 ## Not checked
 
+- **The drawing vault has not met real SOLIDWORKS or AutoCAD files.** Its pictures were
+  checked on files built to the published layouts (a DWG thumbnail table, a compound file
+  with a PreviewPNG stream, ASCII DXF). SOLIDWORKS 2015 and later is read by finding a PNG
+  whose checksums are right, which may find none. A file with no picture is still kept and
+  versioned.
+- **The new screens (Maintainer, features, role screens, vault access and tasks, push and pull) were built but not looked at in a browser.**
+- **Nothing on the Windows side of the vault has run yet.** No Windows PC, PowerShell or C#
+  compiler was available here. It needs a first run on a Windows PC with SOLIDWORKS:
+  - `server/assets/ForgeVaultSync.ps1`: the Forge Vault folder in Explorer's left panel
+    (registered the documented cloud-drive way), the Pull and Push windows, read-only
+    unless the person may push, the right-click menus on files and folders, and the tray
+    icon that only counts what could be pulled and pushed.
+  - `packaging/vault-pc/kit/`: the Explorer badges (`ForgeVaultOverlay.cs`) and the
+    SOLIDWORKS add-in (`ForgeVaultAddin.cs`), built on the PC by `install.ps1` with the
+    C# 5 compiler that ships with Windows. Never compiled.
+  - In the add-in, `SetReadOnlyState` and `ReloadOrReplace` are called late-bound because
+    their behaviour across SOLIDWORKS versions was not confirmed. Making released files read-only on disk works on a normal drive, but the
+  phone's shared storage ignores it, as Windows shares without permission to change
+  attributes will too. The vault's own copy is protected either way.
 - **The Windows setup program has never been run on Windows.** `packaging/windows/build.sh`
   builds `ForgeERP-Setup-<version>-x64.exe` here, but this phone cannot run it. Its downloads
   are pinned to the checksums Node.js and MongoDB publish, and the zip paths inside them

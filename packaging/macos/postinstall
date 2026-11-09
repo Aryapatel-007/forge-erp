@@ -1,0 +1,150 @@
+#!/bin/bash
+# Runs as root at the end of the Mac install. Puts Forge in place, fetches Node.js and MongoDB
+# for this Mac's chip, checks each against the checksum its maker publishes, and starts Forge
+# as two background services. Safe to run again: an update keeps the data and the accounts.
+set -eu -o pipefail
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+BASE="/Library/Application Support/Forge ERP"
+PROGRAM="$BASE/program"
+DATA="$BASE/data"
+LOGS="/Library/Logs/Forge ERP"
+URL="http://localhost:4100/"
+mkdir -p "$LOGS"
+exec > >(tee -a "$LOGS/install.log") 2>&1
+echo "Forge ERP install, $(date)"
+
+# Forge runs as the person installing it, not as root.
+USER_NAME=$(stat -f%Su /dev/console 2> /dev/null || true)
+if [ -z "$USER_NAME" ] || [ "$USER_NAME" = "loginwindow" ]; then USER_NAME=root; fi
+USER_GROUP=$(id -gn "$USER_NAME")
+USER_HOME=$(dscl . -read "/Users/$USER_NAME" NFSHomeDirectory 2> /dev/null | awk '{print $2}' || true)
+
+case "$(uname -m)" in
+  arm64)
+    NODE_FILE=node-v22.23.4-darwin-arm64.tar.gz
+    NODE_SHA=c9e1dbc748b33ed2d14f42445191ecaf14c56259c7a9a26d0042c49ec2b66428
+    NODE_DIR=node-v22.23.4-darwin-arm64
+    MONGO_FILE=mongodb-macos-arm64-7.0.14.tgz
+    MONGO_SHA=8805f8b33801cd07b90118c25e507b0de21c6ad426b375fbe49e896ffc575d0e
+    MONGO_DIR=mongodb-macos-aarch64-7.0.14
+    ;;
+  x86_64)
+    NODE_FILE=node-v22.23.4-darwin-x64.tar.gz
+    NODE_SHA=efcc2b0db6f94bf53eddb038fe2b370277a042bd29e4f19b8f8e23598795b819
+    NODE_DIR=node-v22.23.4-darwin-x64
+    MONGO_FILE=mongodb-macos-x86_64-7.0.14.tgz
+    MONGO_SHA=9b0f70feacf7c41542ee7d0905e2f8090b09d5b8413f0c9079406c09afd7a2c0
+    MONGO_DIR=mongodb-macos-x86_64-7.0.14
+    ;;
+  *)
+    echo "ERROR: This Mac's chip, $(uname -m), is not supported."
+    exit 1
+    ;;
+esac
+
+echo "Putting the program in place."
+rm -rf "$PROGRAM/app" "$PROGRAM/setup"
+mkdir -p "$PROGRAM"
+tar -xzf "$HERE/forge-program.tgz" -C "$PROGRAM"
+rm -rf "/Applications/Forge ERP.app"
+tar -xzf "$HERE/forge-app.tgz" -C /Applications
+chown -R root:wheel "$PROGRAM" "/Applications/Forge ERP.app"
+
+WORK=$(mktemp -d /tmp/forge-setup.XXXXXX)
+trap 'rm -rf "$WORK"' EXIT
+
+fetch() {
+  local name=$1 file=$2 sha=$3 url=$4 member=$5 target=$6
+  local marker="$PROGRAM/runtime/.$file.sha256"
+  if [ -f "$target" ] && [ "$(cat "$marker" 2> /dev/null)" = "$sha" ]; then
+    echo "$name is already in place."
+    return
+  fi
+  echo "Downloading $name."
+  curl --fail --location --silent --show-error --retry 3 --output "$WORK/$file" "$url"
+  local got
+  got=$(shasum -a 256 "$WORK/$file" | awk '{print $1}')
+  if [ "$got" != "$sha" ]; then
+    echo "ERROR: $name did not match its published checksum, so it was not used."
+    exit 1
+  fi
+  echo "$name matches its published checksum."
+  tar -xzf "$WORK/$file" -C "$WORK" "$member"
+  mkdir -p "$(dirname "$target")"
+  mv -f "$WORK/$member" "$target"
+  chmod 755 "$target"
+  echo "$sha" > "$marker"
+  rm -f "$WORK/$file"
+}
+
+mkdir -p "$PROGRAM/runtime"
+fetch "Node.js 22.23.4" "$NODE_FILE" "$NODE_SHA" "https://nodejs.org/dist/v22.23.4/$NODE_FILE" "$NODE_DIR/bin/node" "$PROGRAM/runtime/node/node"
+fetch "MongoDB 7.0.14" "$MONGO_FILE" "$MONGO_SHA" "https://fastdl.mongodb.org/osx/$MONGO_FILE" "$MONGO_DIR/bin/mongod" "$PROGRAM/runtime/mongodb/mongod"
+
+NODE="$PROGRAM/runtime/node/node"
+MONGOD="$PROGRAM/runtime/mongodb/mongod"
+SETUP="$PROGRAM/app/server/scripts/windowsSetup.js"
+
+echo "Writing the settings."
+mkdir -p "$DATA"
+"$NODE" "$SETUP" prepare --data "$DATA" --host keep
+chown -R "$USER_NAME:$USER_GROUP" "$DATA"
+chmod 700 "$DATA"
+
+# A background service that starts with the Mac and restarts if it stops.
+service() {
+  local label=$1
+  shift
+  local plist="/Library/LaunchDaemons/$label.plist"
+  launchctl bootout "system/$label" 2> /dev/null || true
+  {
+    echo '<?xml version="1.0" encoding="UTF-8"?>'
+    echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">'
+    echo '<plist version="1.0"><dict>'
+    echo "  <key>Label</key><string>$label</string>"
+    echo '  <key>ProgramArguments</key><array>'
+    for arg in "$@"; do echo "    <string>$arg</string>"; done
+    echo '  </array>'
+    echo "  <key>WorkingDirectory</key><string>$PROGRAM/app/server</string>"
+    echo "  <key>UserName</key><string>$USER_NAME</string>"
+    echo '  <key>RunAtLoad</key><true/>'
+    echo '  <key>KeepAlive</key><true/>'
+    echo '  <key>ThrottleInterval</key><integer>10</integer>'
+    echo "  <key>StandardOutPath</key><string>$DATA/logs/$label.log</string>"
+    echo "  <key>StandardErrorPath</key><string>$DATA/logs/$label.log</string>"
+    echo '</dict></plist>'
+  } > "$plist"
+  chown root:wheel "$plist"
+  chmod 644 "$plist"
+  launchctl bootstrap system "$plist"
+}
+
+echo "Starting the database."
+service com.forge-erp.database "$MONGOD" --config "$DATA/mongod.cfg"
+"$NODE" "$SETUP" replset --data "$DATA"
+
+# The first administrator. An update keeps the accounts already there.
+PASSWORD=$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | cut -c1-16)
+OUTPUT=$(ADMIN_EMAIL=admin@forge.local ADMIN_NAME=Administrator ADMIN_PASSWORD="$PASSWORD" ADMIN_IF_NONE=1 "$NODE" --env-file="$DATA/forge.env" "$PROGRAM/app/server/scripts/createAdmin.js")
+echo "$OUTPUT"
+if echo "$OUTPUT" | grep -q "created" && [ -n "$USER_HOME" ] && [ -d "$USER_HOME/Desktop" ]; then
+  NOTE="$USER_HOME/Desktop/Forge ERP sign-in.txt"
+  printf 'Forge ERP\n\nOpen: %s\nEmail: admin@forge.local\nPassword: %s\n\nChange this password after signing in, then delete this file.\n' "$URL" "$PASSWORD" > "$NOTE"
+  chown "$USER_NAME:$USER_GROUP" "$NOTE"
+  chmod 600 "$NOTE"
+  echo "The sign-in details are in Forge ERP sign-in.txt on the Desktop."
+fi
+PASSWORD=""
+
+echo "Starting Forge."
+service com.forge-erp.app "$NODE" "--env-file=$DATA/forge.env" server.js
+if "$NODE" "$SETUP" wait-ready --data "$DATA"; then
+  if [ "$USER_NAME" != "root" ]; then
+    launchctl asuser "$(id -u "$USER_NAME")" sudo -u "$USER_NAME" open "$URL" || true
+  fi
+else
+  echo "Forge is installed but has not answered yet. Its log is in $DATA/logs"
+fi
+echo "Done."
+exit 0

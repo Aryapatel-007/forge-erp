@@ -1,0 +1,6 @@
+#!/bin/bash
+# Stops a running Forge before an update replaces its program files. The data is not touched.
+for label in com.forge-erp.app com.forge-erp.database; do
+  launchctl bootout "system/$label" 2> /dev/null || true
+done
+exit 0

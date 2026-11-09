@@ -2,8 +2,10 @@
 // things stand, and where do I go. Everything is shaped by the role of whoever signed in.
 import { useQuery } from '@tanstack/react-query';
 import { Link, Navigate, useParams } from 'react-router-dom';
+import { buildDepartment, departmentTable, DEPARTMENTS } from '../config/departments.js';
+import { useMeta } from '../context/Meta.jsx';
 import { get } from '../api/client.js';
-import { AppTile, useApps } from '../components/Shell.jsx';
+import { AppTile, useApps, useDepartment } from '../components/Shell.jsx';
 import { Icon } from '../components/icons.jsx';
 import { Badge, Card, Empty, ErrorBox, PageHeader, Spinner, Stat } from '../components/ui.jsx';
 import { useAuth } from '../context/Auth.jsx';
@@ -69,7 +71,103 @@ function greeting(name) {
   return `${part}, ${name.split(/\s+/)[0]}`;
 }
 
+/* ---------- A department's page ---------- */
+
+export function DepartmentPage({ dept, preview = false }) {
+  const { user } = useAuth();
+  const home = useHome();
+  const byKey = new Map((home.data?.tiles ?? []).map((t) => [t.key, t]));
+  const tiles = dept.tiles.map((key) => byKey.get(key)).filter(Boolean);
+  const waiting = tiles.filter((t) => t.kind === 'attention');
+  const figures = tiles.filter((t) => t.kind === 'metric');
+  return (
+    <>
+      <PageHeader
+        title={preview ? dept.title : greeting(user.name)}
+        subtitle={preview ? `What someone in ${dept.title} sees when they sign in` : `${dept.title} · ${dept.blurb}`}
+        leading={<AppTile app={dept} />}
+        back={preview ? { to: '/departments', label: 'All departments' } : undefined}
+      />
+      <ErrorBox error={home.error} />
+      {dept.tasks.length > 0 && (
+        <section aria-label="Do now" className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {dept.tasks.map((task) => (
+            <Link key={task.to} to={task.to} className="flex items-center gap-3 rounded-xl border border-line bg-card px-4 py-3 text-sm font-medium hover:border-accent">
+              <span aria-hidden="true" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-white" style={{ background: dept.tint }}><Icon name="plus" size={17} /></span>
+              {task.label}
+            </Link>
+          ))}
+        </section>
+      )}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="min-w-0 space-y-4">
+          {!preview && (
+            <Card title="Waiting on you">
+              {home.isLoading ? <Spinner /> : <AttentionList tiles={waiting} />}
+            </Card>
+          )}
+          {figures.length > 0 && <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{figures.map((t) => <Stat key={t.key} label={t.label} value={t.count} to={t.to} />)}</div>}
+          <div className="grid items-start gap-4 md:grid-cols-2">
+            {dept.sections.map((section) => <SectionCard key={section.title} section={section} />)}
+            {dept.reports.length > 0 && <SectionCard section={{ title: 'Reports', items: dept.reports }} />}
+          </div>
+        </div>
+        {!preview && (
+          <aside className="space-y-4">
+            <PageLinks title="Starred" rows={starredPages()} />
+            <PageLinks title="Recent" rows={recentPages().slice(0, 6)} />
+          </aside>
+        )}
+      </div>
+    </>
+  );
+}
+
+// Management and Admin: every department on one page, to see who sees what.
+export function DepartmentsPage() {
+  const meta = useMeta();
+  const rows = departmentTable(meta);
+  return (
+    <>
+      <PageHeader title="Departments" subtitle="What each department sees in Forge. Tap one to see its page as they do." />
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {rows.map((dept) => (
+          <Card key={dept.key}>
+            <Link to={`/dept/${dept.key}`} className="flex items-center gap-3 border-b border-line px-4 py-3 hover:bg-paper">
+              <AppTile app={dept} />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">{dept.title}</span>
+                <span className="block truncate text-xs text-steel">{dept.blurb}</span>
+              </span>
+            </Link>
+            <dl className="space-y-2 px-4 py-3 text-xs">
+              <div><dt className="font-semibold text-steel">Do now</dt><dd>{dept.tasks.map((t) => t.label.replace(/^New /, '')).join(', ') || 'Nothing'}</dd></div>
+              {dept.sections.map((s) => <div key={s.title}><dt className="font-semibold text-steel">{s.title}</dt><dd>{s.items.map((i) => i.label).join(', ')}</dd></div>)}
+              <div><dt className="font-semibold text-steel">Reports</dt><dd>{dept.reports.map((r) => r.label).join(', ')}</dd></div>
+            </dl>
+          </Card>
+        ))}
+      </div>
+      <p className="mt-4 text-xs text-steel">This decides what each department is shown. What anyone may read or change is checked separately, for every request, from Settings, Role permissions.</p>
+    </>
+  );
+}
+
+export function DepartmentPreview() {
+  const { role } = useParams();
+  const meta = useMeta();
+  const dept = buildDepartment(role, () => true, meta);
+  if (!dept) return <Navigate to="/departments" replace />;
+  return <DepartmentPage dept={dept} preview />;
+}
+
 export function HomePage() {
+  const dept = useDepartment();
+  if (dept) return <DepartmentPage dept={dept} />;
+  return <CompanyHome />;
+}
+
+function CompanyHome() {
   const { user } = useAuth();
   const apps = useApps();
   const home = useHome();
@@ -116,6 +214,18 @@ export function HomePage() {
             {metrics.length > 0 && <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{metrics.map((t) => <Stat key={t.key} label={t.label} value={t.count} to={t.to} />)}</div>}
           </div>
           <aside className="space-y-4">
+            {user.role === 'ADMIN' && (
+              <Link to="/maintainer" className="flex items-center gap-3 rounded-xl border border-accent/40 bg-accent-soft px-4 py-3 text-accent hover:shadow-md">
+                <span className="text-sm"><b>Maintainer</b><span className="block text-xs">Accounts, features on and off, what each role sees, vault access</span></span>
+              </Link>
+            )}
+            <Card title="Departments" actions={<Link to="/departments" className="text-xs text-accent underline">Who sees what</Link>}>
+              <ul className="divide-y divide-line">
+                {Object.entries(DEPARTMENTS).map(([key, d]) => (
+                  <li key={key}><Link to={`/dept/${key}`} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-paper"><span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ background: d.tint }} />{d.title}</Link></li>
+                ))}
+              </ul>
+            </Card>
             <PageLinks title="Starred" rows={starredPages()} />
             <PageLinks title="Recent" rows={recentPages().slice(0, 6)} />
           </aside>
@@ -129,6 +239,18 @@ export function HomePage() {
 
 export function AppsPage() {
   const apps = useApps();
+  const dept = useDepartment();
+  if (dept) {
+    return (
+      <>
+        <PageHeader title={`${dept.title} menu`} />
+        <div className="grid items-start gap-4 md:grid-cols-2">
+          {dept.sections.map((section) => <SectionCard key={section.title} section={section} />)}
+          {dept.reports.length > 0 && <SectionCard section={{ title: 'Reports', items: dept.reports }} />}
+        </div>
+      </>
+    );
+  }
   return (
     <>
       <PageHeader title="Apps" />

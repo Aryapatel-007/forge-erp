@@ -4,6 +4,8 @@ import { User } from '../models/core.js';
 import { can } from '../config/permissions.js';
 import { isTest } from '../config/env.js';
 import { verifyAccessToken } from '../services/authService.js';
+import { allowed, featureOff, featureOffError, policy } from '../services/policyService.js';
+import { FEATURE_OF_PERM } from '../config/features.js';
 import { AppError, badRequest, forbidden, unauthenticated } from '../utils/errors.js';
 
 export async function authenticate(req, _res, next) {
@@ -28,8 +30,12 @@ export async function authenticate(req, _res, next) {
   next();
 }
 
-export const requirePerm = (permission) => (req, _res, next) => {
+// The role's permission, unless the maintainer switched the feature off or took the screen
+// away from that role.
+export const requirePerm = (permission) => async (req, _res, next) => {
   if (!can(req.user.role, permission)) throw forbidden();
+  if (featureOff(await policy(), FEATURE_OF_PERM.get(permission))) throw featureOffError();
+  if (!(await allowed(req.user.role, permission))) throw forbidden('The maintainer has not given your role this screen.');
   next();
 };
 

@@ -6,3 +6,9 @@ dist/
 backups/
 packaging/windows/build/
 packaging/windows/out/
+packaging/macos/build/
+packaging/macos/out/
+packaging/portable/build/
+packaging/portable/out/
+__pycache__/
+packaging/vault-pc/art/

@@ -6,6 +6,8 @@ import { useAuth } from '../context/Auth.jsx';
 import { formatDateTime } from '../utils/format.js';
 import { FormField, initialValues, toPayload } from './generic/fields.jsx';
 import { ActionDialog } from './generic/ActionDialog.jsx';
+import { ROLE_INFO, ROLE_KEYS, roleLabel } from '../config/roles.js';
+import { Link } from 'react-router-dom';
 
 const SETTINGS_FIELDS = [
   { key: 'legalName', label: 'Legal name', type: 'text', required: true, wide: true },
@@ -85,10 +87,10 @@ export function SettingsPage() {
   );
 }
 
-const ROLES = ['ADMIN', 'MANAGEMENT', 'SALES', 'ENGINEERING', 'PURCHASE', 'STORES', 'PRODUCTION', 'QUALITY', 'ACCOUNTS', 'SERVICE', 'HR', 'PORTAL'];
+const ROLES = ROLE_KEYS;
 const partyRef = { endpoint: '/parties', labelOf: (r) => `${r.code} · ${r.name}` };
 const portalParty = { key: 'partyId', label: 'Customer or supplier', type: 'ref', ref: partyRef, showIf: (v) => v.role === 'PORTAL', hint: 'A portal sign-in sees only this party\'s own documents' };
-const roleOptions = ROLES.map((value) => ({ value, label: value.charAt(0) + value.slice(1).toLowerCase() }));
+const roleOptions = ROLES.map((value) => ({ value, label: roleLabel(value) }));
 
 export function UsersPage() {
   const queryClient = useQueryClient();
@@ -104,8 +106,8 @@ export function UsersPage() {
   const openNew = () => {
     run.reset();
     setDialog({
-      title: 'New user',
-      confirmLabel: 'Create user',
+      title: 'New account',
+      confirmLabel: 'Create account',
       fields: [
         { key: 'name', label: 'Name', type: 'text', required: true },
         { key: 'email', label: 'Email', type: 'text', required: true },
@@ -132,13 +134,23 @@ export function UsersPage() {
   };
   return (
     <>
-      <PageHeader title="Users" actions={<Button variant="primary" onClick={openNew}>New user</Button>} />
+      <PageHeader title="Accounts" subtitle="Everyone who signs in to Forge. Their role decides what they see; the same app for all." actions={<Button variant="primary" onClick={openNew}>New account</Button>} />
       <Card>
         {query.isLoading && <Spinner />}
         <ErrorBox error={query.error} />
         {query.data && (
-          <Table rows={query.data} onRowClick={openEdit} columns={[{ key: 'name', label: 'Name' }, { key: 'email', label: 'Email' }, { key: 'role', label: 'Role' }, { key: 'isActive', label: 'Status', render: (r) => <Badge value={r.isActive ? 'Active' : 'Switched off'} tone={r.isActive ? 'ok' : 'neutral'} /> }]} />
+          <Table rows={query.data} onRowClick={openEdit} columns={[{ key: 'name', label: 'Name' }, { key: 'email', label: 'Email' }, { key: 'role', label: 'Role', render: (r) => roleLabel(r.role) }, { key: 'isActive', label: 'Status', render: (r) => <Badge value={r.isActive ? 'Active' : 'Switched off'} tone={r.isActive ? 'ok' : 'neutral'} /> }]} />
         )}
+      </Card>
+      <Card title="The roles" className="mt-4" actions={<Link to="/maintainer/roles" className="text-sm text-accent underline">Choose what each role sees</Link>}>
+        <dl className="divide-y divide-line text-sm">
+          {ROLES.map((role) => (
+            <div key={role} className="flex flex-wrap gap-x-3 px-4 py-2">
+              <dt className="w-48 shrink-0 font-medium">{roleLabel(role)}</dt>
+              <dd className="min-w-0 flex-1 text-steel">{ROLE_INFO[role].blurb}</dd>
+            </div>
+          ))}
+        </dl>
       </Card>
       {dialog && <ActionDialog {...dialog} error={run.error} isPending={run.isPending} onConfirm={dialog.run} onClose={() => setDialog(null)} />}
     </>
