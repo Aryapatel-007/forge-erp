@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, del, get, post, saveJson } from '../../api/client.js';
 import { Icon } from '../../components/icons.jsx';
-import { Badge, Button, Card, ErrorBox, MenuButton, MenuLink, MoreMenu, PageHeader, Spinner, StatusSteps, Table, Tabs } from '../../components/ui.jsx';
+import { Badge, Button, Card, ErrorBox, MenuButton, MenuLink, MoreMenu, PageHeader, Spinner, StatusSteps, Table, Tabs, useToast } from '../../components/ui.jsx';
 import { noteVisit } from '../../utils/recents.js';
 import { useAuth } from '../../context/Auth.jsx';
 import { useAllowed, useResource } from '../../config/useResource.js';
@@ -74,6 +74,7 @@ export function DetailPage() {
   const [dialog, setDialog] = useState(null);
   const [saveError, setSaveError] = useState(null);
   const [tab, setTab] = useState(null);
+  const toast = useToast();
 
   const query = useQuery({ queryKey: ['doc', resource, id], queryFn: () => get(`${config.endpoint}/${id}`), enabled: Boolean(config) });
 
@@ -95,6 +96,7 @@ export function DetailPage() {
     onSuccess: (result, variables) => {
       refresh();
       setDialog(null);
+      toast(variables.done ?? 'Done');
       if (variables.navigate) navigate(`/${variables.navigate}/${result.id}`);
     },
   });
@@ -102,6 +104,7 @@ export function DetailPage() {
     mutationFn: () => del(`${config.endpoint}/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['list', resource] });
+      toast('Deleted');
       navigate(`/${resource}`, { replace: true });
     },
   });
@@ -152,7 +155,7 @@ export function DetailPage() {
         hint: config.submitHint ?? 'Once submitted it cannot be edited, only cancelled.',
         fields: (config.submitPrompts ?? []).map((prompt) => ({ ...prompt, type: 'textarea', required: !prompt.optional })),
         confirmLabel: config.submitLabel ?? 'Submit',
-        run: (body) => run.mutate({ path: 'submit', body }),
+        run: (body) => run.mutate({ path: 'submit', body, done: 'Submitted' }),
       }),
     });
   }
@@ -165,7 +168,7 @@ export function DetailPage() {
     fields: [{ key: 'reason', label: 'Why?', type: 'textarea', required: true }],
     confirmLabel: 'Cancel it',
     tone: 'danger',
-    run: (body) => run.mutate({ path: 'cancel', body }),
+    run: (body) => run.mutate({ path: 'cancel', body, done: 'Cancelled. A reversal was posted.' }),
   });
 
   // Up to two next steps stay in view. Anything else is one tap away.

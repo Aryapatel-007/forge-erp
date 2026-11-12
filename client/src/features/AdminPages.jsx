@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { get, getList, patch, post, queryString } from '../api/client.js';
-import { Badge, Button, Card, ErrorBox, Field, Input, PageHeader, Spinner, Table } from '../components/ui.jsx';
+import { Badge, Button, Card, ErrorBox, Field, Input, PageHeader, Select, Spinner, Stat, Table, useToast } from '../components/ui.jsx';
 import { useAuth } from '../context/Auth.jsx';
 import { formatDateTime } from '../utils/format.js';
 import { FormField, initialValues, toPayload } from './generic/fields.jsx';
@@ -34,6 +34,15 @@ const SETTINGS_FIELDS = [
   { key: 'einvoiceRequired', label: 'E-invoicing applies to us', type: 'check' },
   { key: 'einvoiceReportDays', label: 'E-invoice reporting limit, days', type: 'integer', hint: '0 for no limit. Ask your CA which limit applies to your turnover.' },
   { key: 'booksLockedUpTo', label: 'Books locked up to', type: 'date', hint: 'Nothing can post on or before this date' },
+];
+
+const SETTING_GROUPS = [
+  { title: 'Company', keys: ['legalName', 'gstin', 'pan', 'stateCode', 'address', 'email', 'phone', 'bankDetails'] },
+  { title: 'GST and invoicing', keys: ['lutNumber', 'roundOffInvoices', 'gstB2clLimitPaise', 'einvoiceRequired', 'einvoiceReportDays', 'caReviewedOn'] },
+  { title: 'Approvals and costing', keys: ['poApprovalLimitPaise', 'labourRatePaise', 'warrantyMonths', 'jobWorkInputDays', 'jobWorkCapitalDays'] },
+  { title: 'Stock and production', keys: ['blockExpiredBatches', 'woDefaultOverBps', 'woDefaultBackflush'] },
+  { title: 'Website', keys: ['siteShowPrices'] },
+  { title: 'Books', keys: ['booksLockedUpTo'] },
 ];
 
 export function SettingsPage() {
@@ -74,11 +83,13 @@ export function SettingsPage() {
     <>
       <PageHeader title="Settings" />
       <form onSubmit={submit} className="space-y-4">
-        <Card className="p-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {SETTINGS_FIELDS.map((field) => <FormField key={field.key} field={field} values={values} setValue={(key, value) => setValues({ ...values, [key]: value })} />)}
-          </div>
-        </Card>
+        {SETTING_GROUPS.map((group) => (
+          <Card key={group.title} title={group.title}>
+            <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-3">
+              {SETTINGS_FIELDS.filter((field) => group.keys.includes(field.key)).map((field) => <FormField key={field.key} field={field} values={values} setValue={(key, value) => setValues({ ...values, [key]: value })} />)}
+            </div>
+          </Card>
+        ))}
         <ErrorBox error={localError ?? save.error} />
         {saved && <p role="status" className="text-sm text-ok">Saved.</p>}
         <Button type="submit" variant="primary" disabled={save.isPending}>Save settings</Button>
@@ -94,12 +105,16 @@ const roleOptions = ROLES.map((value) => ({ value, label: roleLabel(value) }));
 
 export function UsersPage() {
   const queryClient = useQueryClient();
+  const toast = useToast();
+  const [q, setQ] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
   const query = useQuery({ queryKey: ['users'], queryFn: () => get('/admin/users') });
   const [dialog, setDialog] = useState(null);
   const run = useMutation({
     mutationFn: ({ id, body }) => (id ? patch(`/admin/users/${id}`, body) : post('/admin/users', body)),
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast(vars.id ? 'Account saved' : 'Account made');
       setDialog(null);
     },
   });
@@ -135,11 +150,26 @@ export function UsersPage() {
   return (
     <>
       <PageHeader title="Accounts" subtitle="Everyone who signs in to Forge. Their role decides what they see; the same app for all." actions={<Button variant="primary" onClick={openNew}>New account</Button>} />
+      {query.data && (
+        <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <Stat label="Accounts" value={query.data.length} />
+          <Stat label="Can sign in" value={query.data.filter((u) => u.isActive).length} />
+          <Stat label="Switched off" value={query.data.filter((u) => !u.isActive).length} />
+          <Stat label="Roles in use" value={new Set(query.data.map((u) => u.role)).size} />
+        </div>
+      )}
       <Card>
+        <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">
+          <Input aria-label="Find an account" placeholder="Find by name or email" className="max-w-xs" value={q} onChange={(e) => setQ(e.target.value)} />
+          <Select aria-label="Role" className="w-auto" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+            <option value="">Every role</option>
+            {ROLES.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}
+          </Select>
+        </div>
         {query.isLoading && <Spinner />}
         <ErrorBox error={query.error} />
         {query.data && (
-          <Table rows={query.data} onRowClick={openEdit} columns={[{ key: 'name', label: 'Name' }, { key: 'email', label: 'Email' }, { key: 'role', label: 'Role', render: (r) => roleLabel(r.role) }, { key: 'isActive', label: 'Status', render: (r) => <Badge value={r.isActive ? 'Active' : 'Switched off'} tone={r.isActive ? 'ok' : 'neutral'} /> }]} />
+          <Table rows={query.data.filter((u) => (!roleFilter || u.role === roleFilter) && (!q || `${u.name} ${u.email}`.toLowerCase().includes(q.toLowerCase())))} empty="No account matches." onRowClick={openEdit} columns={[{ key: 'name', label: 'Name' }, { key: 'email', label: 'Email' }, { key: 'role', label: 'Role', render: (r) => roleLabel(r.role) }, { key: 'isActive', label: 'Status', render: (r) => <Badge value={r.isActive ? 'Active' : 'Switched off'} tone={r.isActive ? 'ok' : 'neutral'} /> }]} />
         )}
       </Card>
       <Card title="The roles" className="mt-4" actions={<Link to="/maintainer/roles" className="text-sm text-accent underline">Choose what each role sees</Link>}>

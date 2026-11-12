@@ -11,6 +11,7 @@ import { Badge, Card, Empty, ErrorBox, PageHeader, Spinner, Stat } from '../comp
 import { useAuth } from '../context/Auth.jsx';
 import { formatDate, formatPaise, humanise } from '../utils/format.js';
 import { recentPages, starredPages } from '../utils/recents.js';
+import { PhaseStrip, WaitingOnDepartment } from './OrderJourney.jsx';
 
 const STAGES = ['PLANNED', 'PROCUREMENT', 'FABRICATION', 'ASSEMBLY', 'FAT', 'READY', 'DISPATCHED'];
 const toneText = { danger: 'text-danger', warn: 'text-warn', info: 'text-accent', neutral: 'text-steel' };
@@ -71,6 +72,32 @@ function greeting(name) {
   return `${part}, ${name.split(/\s+/)[0]}`;
 }
 
+// The company's machine orders, each as a strip of its seven phases.
+function OrdersOverview() {
+  const query = useQuery({ queryKey: ['journey', 'board', false], queryFn: () => get('/journey/board'), refetchInterval: 60000 });
+  const rows = query.data ?? [];
+  if (query.isLoading || rows.length === 0) return null;
+  const late = rows.filter((j) => j.late > 0).length;
+  return (
+    <Card title={`Machine orders · ${rows.length} in progress${late ? ` · ${late} late` : ''}`} actions={<Link to="/orders" className="text-xs text-accent underline">All orders</Link>}>
+      <ul className="divide-y divide-line">
+        {rows.slice(0, 6).map((j) => (
+          <li key={j.build.id}>
+            <Link to={`/orders/${j.build.id}`} className="block space-y-1.5 px-4 py-2.5 hover:bg-paper">
+              <div className="flex items-center justify-between gap-2 text-sm">
+                <span className="min-w-0 truncate"><b>{j.build.partyName || 'Stock'}</b> <span className="text-steel">· {j.build.itemName}</span></span>
+                <span className={`shrink-0 text-xs ${j.late ? 'text-danger' : 'text-steel'}`}>{j.late ? `${j.late} late` : `${j.done}/${j.total}`}</span>
+              </div>
+              <PhaseStrip phases={j.phases} compact />
+              {j.current && <p className="truncate text-xs text-steel">Now: {j.current.title}</p>}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 /* ---------- A department's page ---------- */
 
 export function DepartmentPage({ dept, preview = false }) {
@@ -106,6 +133,7 @@ export function DepartmentPage({ dept, preview = false }) {
               {home.isLoading ? <Spinner /> : <AttentionList tiles={waiting} />}
             </Card>
           )}
+          {!preview && <WaitingOnDepartment />}
           {figures.length > 0 && <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{figures.map((t) => <Stat key={t.key} label={t.label} value={t.count} to={t.to} />)}</div>}
           <div className="grid items-start gap-4 md:grid-cols-2">
             {dept.sections.map((section) => <SectionCard key={section.title} section={section} />)}
@@ -185,6 +213,7 @@ function CompanyHome() {
             <Card title="Waiting on someone" actions={d.me.todos > 0 ? <Link to="/my-work" className="text-xs text-accent underline">{d.me.todos} assigned to you</Link> : null}>
               <AttentionList tiles={d.tiles} />
             </Card>
+            <OrdersOverview />
             {d.floor && (
               <Card title="Machines on the floor" actions={<Link to="/builds?view=kanban" className="text-xs text-accent underline">Board</Link>}>
                 <div className="no-scrollbar flex overflow-x-auto">

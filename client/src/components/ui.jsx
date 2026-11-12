@@ -1,5 +1,5 @@
 // The shared parts every screen is made from. Change how Forge looks here, not on a screen.
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { humanise } from '../utils/format.js';
 import { Icon } from './icons.jsx';
@@ -287,5 +287,33 @@ export function StatusSteps({ steps, current }) {
         );
       })}
     </ol>
+  );
+}
+
+/* ---------- Short confirmations ---------- */
+
+const ToastContext = createContext(() => {});
+export const useToast = () => useContext(ToastContext);
+
+// "Saved", "Submitted", "Step done": a short note at the bottom that goes away by itself.
+export function ToastProvider({ children }) {
+  const [toasts, setToasts] = useState([]);
+  const show = useCallback((message, tone = 'ok') => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts((all) => [...all.slice(-2), { id, message, tone }]);
+    setTimeout(() => setToasts((all) => all.filter((t) => t.id !== id)), 3500);
+  }, []);
+  return (
+    <ToastContext.Provider value={show}>
+      {children}
+      <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-20 z-[60] flex flex-col items-center gap-2 px-4 md:bottom-6">
+        {toasts.map((t) => (
+          <div key={t.id} role="status" className={`pointer-events-auto flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm text-white shadow-lg ${t.tone === 'danger' ? 'bg-danger' : 'bg-rail'}`}>
+            <Icon name={t.tone === 'ok' ? 'check' : 'alert'} size={16} />
+            {t.message}
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
   );
 }

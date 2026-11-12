@@ -112,6 +112,10 @@ export function BuildPage() {
         )}
         actions={actions}
       />
+      <Link to={`/orders/${b.id}`} className="mb-4 flex items-center gap-3 rounded-xl border border-accent/40 bg-accent-soft px-4 py-3 text-sm text-accent hover:shadow-md">
+        <span className="min-w-0 flex-1"><b>Order journey</b> · every step from kick-off to handover, and which department has it now</span>
+        <span aria-hidden="true">→</span>
+      </Link>
       <div className="space-y-4">
         <ErrorBox error={!dialog ? act.error : null} />
         <Card>

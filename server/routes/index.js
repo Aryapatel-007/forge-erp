@@ -29,6 +29,7 @@ import { engineRouter } from '../engine/router.js';
 import { portalRoutes, publicRoutes, viewRoutes } from './views.js';
 import { vaultAgentRoutes, vaultRoutes } from './vault.js';
 import { maintainerRoutes } from './maintainer.js';
+import { journeyRoutes } from './journey.js';
 
 const requireObjectId2 = (req, _res, next) => {
   if (!mongoose.isValidObjectId(req.params.id)) throw badRequest('That id is not valid.');
@@ -406,6 +407,7 @@ export function apiRouter() {
   api.use('/public', publicRoutes());
   api.use('/portal', portalRoutes());
   api.use('/views', viewRoutes());
+  api.use('/journey', journeyRoutes());
   api.use('/vault', vaultRoutes());
   api.use('/vault-agent', vaultAgentRoutes());
   api.use(engineRouter());

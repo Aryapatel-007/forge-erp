@@ -93,7 +93,7 @@ export function PrintPage() {
   const letterHead = letterHeads.find((l) => l.id === format?.letterHeadId) ?? letterHeads.find((l) => l.isDefault);
 
   return (
-    <div className="no-translate mx-auto max-w-4xl bg-white p-6">
+    <div className="force-light no-translate mx-auto max-w-4xl bg-white p-6">
       <div className="no-print mb-4 flex gap-2">
         <Button variant="primary" onClick={() => window.print()}>Print</Button>
         <Button onClick={() => navigate(-1)}>Back</Button>

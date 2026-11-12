@@ -10,14 +10,14 @@ import { rule } from '../utils/errors.js';
 
 const OFFICE = ['ADMIN', 'MANAGEMENT'];
 const FINANCE = [...OFFICE, 'ACCOUNTS'];
-const SALES = [...OFFICE, 'SALES', 'ACCOUNTS'];
-const BUYING = [...OFFICE, 'PURCHASE', 'ACCOUNTS'];
+const SALES = [...OFFICE, 'SALES', 'PROJECTS', 'ACCOUNTS'];
+const BUYING = [...OFFICE, 'PURCHASE', 'PROJECTS', 'ACCOUNTS'];
 const STOCK = [...OFFICE, 'STORES', 'PURCHASE', 'PRODUCTION', 'ACCOUNTS'];
-const MAKE = [...OFFICE, 'PRODUCTION', 'ENGINEERING', 'ACCOUNTS'];
+const MAKE = [...OFFICE, 'PRODUCTION', 'PROJECTS', 'ENGINEERING', 'ACCOUNTS'];
 const HR = [...OFFICE, 'HR'];
 const PAY = [...OFFICE, 'HR', 'ACCOUNTS'];
 const CARE = [...OFFICE, 'SERVICE', 'QUALITY', 'SALES'];
-const QA = [...OFFICE, 'QUALITY', 'PRODUCTION'];
+const QA = [...OFFICE, 'QUALITY', 'VALIDATION', 'PROJECTS', 'PRODUCTION'];
 const DATES = 'from:date to:date';
 
 const live = { status: 'SUBMITTED' };

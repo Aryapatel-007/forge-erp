@@ -1,6 +1,6 @@
 // Who may do what. The server checks this on every route.
 export const ROLES = Object.freeze([
-  'ADMIN', 'MANAGEMENT', 'SALES', 'ENGINEERING', 'PURCHASE', 'STORES',
+  'ADMIN', 'MANAGEMENT', 'SALES', 'PROJECTS', 'ENGINEERING', 'VALIDATION', 'PURCHASE', 'STORES',
   'PRODUCTION', 'OPERATOR', 'QUALITY', 'ACCOUNTS', 'SERVICE', 'HR', 'PORTAL',
 ]);
 // A portal sign-in belongs to a customer or supplier, not to staff.
@@ -30,20 +30,20 @@ export const PERMISSIONS = Object.freeze({
   'boms.write': [...office, 'ENGINEERING'],
   'boms.release': [...office, 'ENGINEERING'],
 
-  'quotations.read': [...office, 'SALES', 'ACCOUNTS', 'ENGINEERING'],
+  'quotations.read': [...office, 'SALES', 'ACCOUNTS', 'ENGINEERING', 'PROJECTS'],
   'quotations.write': [...office, 'SALES'],
-  'salesOrders.read': [...office, 'SALES', 'ACCOUNTS', 'ENGINEERING', 'PURCHASE', 'PRODUCTION', 'QUALITY', 'SERVICE', 'STORES'],
+  'salesOrders.read': [...office, 'SALES', 'PROJECTS', 'ACCOUNTS', 'ENGINEERING', 'VALIDATION', 'PURCHASE', 'PRODUCTION', 'QUALITY', 'SERVICE', 'STORES'],
   'salesOrders.write': [...office, 'SALES'],
 
   'builds.read': everyone,
-  'builds.write': [...office, 'PRODUCTION', 'ENGINEERING'],
+  'builds.write': [...office, 'PROJECTS', 'PRODUCTION', 'ENGINEERING'],
   'builds.complete': [...office, 'PRODUCTION'],
   'builds.install': [...office, 'SERVICE'],
 
-  'purchaseOrders.read': [...office, 'PURCHASE', 'ACCOUNTS', 'STORES', 'PRODUCTION'],
+  'purchaseOrders.read': [...office, 'PURCHASE', 'PROJECTS', 'ACCOUNTS', 'STORES', 'PRODUCTION'],
   'purchaseOrders.write': [...office, 'PURCHASE'],
   'purchaseOrders.approve': office,
-  'grns.read': [...office, 'PURCHASE', 'STORES', 'QUALITY', 'ACCOUNTS'],
+  'grns.read': [...office, 'PURCHASE', 'PROJECTS', 'STORES', 'QUALITY', 'ACCOUNTS'],
   'grns.write': [...office, 'STORES'],
   'purchaseInvoices.read': [...office, 'ACCOUNTS', 'PURCHASE'],
   'purchaseInvoices.write': [...office, 'ACCOUNTS'],
@@ -51,19 +51,19 @@ export const PERMISSIONS = Object.freeze({
   'stock.read': everyone,
   'stock.write': [...office, 'STORES'],
   'issues.write': [...office, 'STORES', 'PRODUCTION'],
-  'jobWork.read': [...office, 'PURCHASE', 'STORES', 'PRODUCTION', 'ACCOUNTS'],
+  'jobWork.read': [...office, 'PURCHASE', 'PROJECTS', 'STORES', 'PRODUCTION', 'ACCOUNTS'],
   'jobWork.write': [...office, 'PURCHASE', 'STORES'],
   'time.read': [...office, 'PRODUCTION', 'OPERATOR', 'ACCOUNTS'],
   'time.write': [...office, 'PRODUCTION', 'OPERATOR'],
 
-  'inspections.read': [...office, 'QUALITY', 'STORES', 'PURCHASE'],
+  'inspections.read': [...office, 'QUALITY', 'VALIDATION', 'PROJECTS', 'STORES', 'PURCHASE'],
   'inspections.write': [...office, 'QUALITY'],
-  'ncrs.read': [...office, 'QUALITY', 'PRODUCTION', 'OPERATOR', 'ENGINEERING', 'PURCHASE', 'SERVICE'],
+  'ncrs.read': [...office, 'QUALITY', 'VALIDATION', 'PROJECTS', 'PRODUCTION', 'OPERATOR', 'ENGINEERING', 'PURCHASE', 'SERVICE'],
   'ncrs.write': [...office, 'QUALITY', 'PRODUCTION', 'OPERATOR', 'SERVICE'],
   'ncrs.close': [...office, 'QUALITY'],
-  'fat.read': [...office, 'QUALITY', 'PRODUCTION', 'SALES', 'SERVICE'],
-  'fat.write': [...office, 'QUALITY'],
-  'gauges.read': [...office, 'QUALITY', 'PRODUCTION'],
+  'fat.read': [...office, 'QUALITY', 'VALIDATION', 'PROJECTS', 'PRODUCTION', 'SALES', 'SERVICE'],
+  'fat.write': [...office, 'QUALITY', 'VALIDATION'],
+  'gauges.read': [...office, 'QUALITY', 'VALIDATION', 'PRODUCTION'],
   'gauges.write': [...office, 'QUALITY'],
 
   'salesInvoices.read': [...office, 'ACCOUNTS', 'SALES'],
@@ -74,12 +74,12 @@ export const PERMISSIONS = Object.freeze({
   'journals.read': [...office, 'ACCOUNTS'],
   'journals.write': [...office, 'ACCOUNTS'],
 
-  'service.read': [...office, 'SERVICE', 'SALES', 'QUALITY'],
+  'service.read': [...office, 'SERVICE', 'PROJECTS', 'SALES', 'QUALITY'],
   'service.write': [...office, 'SERVICE'],
 
   // The drawing vault. Everyone can look at drawings; engineering changes and releases them.
   'vault.read': everyone,
-  'vault.write': [...office, 'ENGINEERING'],
+  'vault.write': [...office, 'ENGINEERING', 'VALIDATION'],
   'vault.release': [...office, 'ENGINEERING'],
   'vault.admin': ['ADMIN'],
 

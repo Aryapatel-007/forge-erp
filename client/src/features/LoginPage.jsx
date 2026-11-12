@@ -6,6 +6,7 @@ export function LoginPage() {
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [show, setShow] = useState(false);
   const [error, setError] = useState(null);
   const [isPending, setIsPending] = useState(false);
 
@@ -31,7 +32,12 @@ export function LoginPage() {
       <form onSubmit={submit} className="w-full max-w-sm space-y-4 rounded-2xl bg-card p-6 shadow-xl">
         <h1 className="text-lg font-semibold">Sign in</h1>
         <Field label="Email"><Input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-        <Field label="Password"><Input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
+        <Field label="Password">
+          <div className="relative">
+            <Input type={show ? 'text' : 'password'} autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} className="pr-16" />
+            <button type="button" onClick={() => setShow(!show)} className="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 text-xs text-steel hover:text-ink">{show ? 'Hide' : 'Show'}</button>
+          </div>
+        </Field>
         <ErrorBox error={error} />
         <Button type="submit" variant="primary" className="w-full" disabled={isPending}>{isPending ? 'Signing in…' : 'Sign in'}</Button>
       </form>

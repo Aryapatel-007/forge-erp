@@ -6,6 +6,7 @@ import { APPS } from '../config/apps.js';
 import { get, patch, post, queryString } from '../api/client.js';
 import { Button, Card, ErrorBox, Input, PageHeader, Spinner, Table } from '../components/ui.jsx';
 import { formatDate, formatDateTime } from '../utils/format.js';
+import { WaitingOnDepartment } from './OrderJourney.jsx';
 
 // Old addresses keep working, and land in the area that now holds that module.
 export function LegacyModuleRedirect() {
@@ -69,6 +70,7 @@ export function MyWorkPage() {
             ]}
           />
         </Card>
+        <WaitingOnDepartment title="Order steps due for your department" />
         <Card title="Notifications" actions={<Button variant="ghost" onClick={() => readAll.mutate()}>Mark all read</Button>}>
           <ErrorBox error={notes.error} />
           <Table

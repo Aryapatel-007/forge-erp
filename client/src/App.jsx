@@ -21,6 +21,7 @@ import { PortalApp } from './features/PortalApp.jsx';
 import { PublicFormPage } from './features/PublicFormPage.jsx';
 import { SetupGuide } from './features/SetupGuide.jsx';
 import { VaultAdminPage, VaultFilePage, VaultPage } from './features/VaultPages.jsx';
+import { JourneyPage, OrdersBoard } from './features/OrderJourney.jsx';
 import { FeaturesPage, MaintainerHome, RoleScreenPage, RolesPage } from './features/MaintainerPages.jsx';
 import { SitePage } from './features/SitePages.jsx';
 
@@ -61,6 +62,8 @@ export function App() {
         <Route path="dash" element={<DashboardsPage />} />
         <Route path="dash/:id" element={<DashboardView />} />
         <Route path="going-live" element={<SetupGuide />} />
+        <Route path="orders" element={<OrdersBoard />} />
+        <Route path="orders/:buildId" element={<JourneyPage />} />
         <Route path="vault" element={<VaultPage />} />
         <Route path="vault/admin" element={<VaultAdminPage />} />
         <Route path="vault/setup" element={<Navigate to="/vault/admin" replace />} />

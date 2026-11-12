@@ -252,3 +252,36 @@ maintainer is never limited. Roles: Maintainer, Management, Sales, Design and
 engineering, Purchase, Stores, Production, Shop floor operator (new: jobs, time, released
 drawings, problems; no prices, customers or people), Quality, Accounts, Service, People
 (HR), and Customer or supplier (portal).
+
+## 13. Departments and order journeys
+
+The departments follow how pharma machine builders are organised (`docs/RESEARCH.md`),
+in the order a machine order passes through them: Sales, Projects, Design, Documentation
+and validation, Purchase, Stores and dispatch, Production, Shop floor, Quality, Service,
+Accounts, People. Projects and Documentation and validation are roles of their own
+(`PROJECTS`, `VALIDATION`).
+
+Every machine build has an order journey (`services/journeyService.js`, collection
+`orderjourneys`): the 22 steps in `config/orderJourney.js`, in seven phases. Each step
+belongs to a department. Steps with a record behind them tick themselves when the record
+appears. The others are ticked by their department, or by Projects, Management or the
+maintainer, and each tick is audited. A ticked-by-records step cannot be undone by hand.
+Planned dates are the template's days stretched so dispatch falls on the delivery date.
+`/journey/mine` lists, for a department, its steps due in the next two weeks, which is
+the "Order steps waiting on you" card on its home page.
+
+## 14. How Forge looks
+
+A from-scratch redesign was tried in November 2026 and set aside: the earlier screens
+(top bar, area bar, department pages) were kept. What it added that stayed, in the
+earlier style:
+
+- **Dark mode.** Dark versions of the same colour tokens in `client/src/index.css`, used when
+  the device is dark unless the person picks Light or Dark under Appearance in their account
+  menu (`client/src/theme.js`). Printouts use `.force-light`.
+- **Confirmations.** `useToast()` from `components/ui.jsx` shows a short "Saved", "Submitted"
+  or "Step done" at the bottom after an action.
+- Orders: summary figures, All / Late / On track, % done, finished phases folded away.
+  Accounts: search and a role filter. Settings in sections. My work lists the order steps
+  due for the department. Going live has a progress bar and its next step. Sign-in can
+  show the password.

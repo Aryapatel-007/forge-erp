@@ -9,7 +9,7 @@ import { addDays, daysBetween, todayIst } from '../utils/dates.js';
 import { rule } from '../utils/errors.js';
 import { isWorkingDay, workstationDayMilli } from './manufacturing.js';
 
-const MAKE = ['ADMIN', 'MANAGEMENT', 'PRODUCTION', 'ENGINEERING', 'ACCOUNTS'];
+const MAKE = ['ADMIN', 'MANAGEMENT', 'PRODUCTION', 'PROJECTS', 'ENGINEERING', 'ACCOUNTS'];
 const DATES = 'from:date to:date';
 const pctOf = (part, whole) => (whole > 0 ? mulDivRound(part, 10000, whole) : 0);
 

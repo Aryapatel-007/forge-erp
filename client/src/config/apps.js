@@ -69,9 +69,9 @@ export const APPS = [
     tint: '#b4541a',
     blurb: 'Machine builds, work orders and the shop floor',
     modules: ['manufacturing', 'subcontracting'],
-    process: ['ProductionPlan', 'builds', 'WorkOrder', 'JobCard', 'fat'],
+    process: [{ to: '/orders', label: 'Orders', perm: 'builds.read' }, 'ProductionPlan', 'builds', 'WorkOrder', 'JobCard', 'fat'],
     sections: [
-      { title: 'Machine builds', items: ['builds', 'materialIssues', 'timeBookings'] },
+      { title: 'Machine builds', items: [{ to: '/orders', label: 'Orders and their steps', perm: 'builds.read' }, 'builds', 'materialIssues', 'timeBookings'] },
       { title: 'Shop floor', items: ['WorkOrder', 'JobCard', 'DowntimeEntry'] },
       { title: 'Planning', items: ['ProductionPlan', 'MasterProductionSchedule', 'SalesForecast', 'CapacityBooking'] },
       { title: 'Job work', items: ['jobWork', 'SubcontractingOrder', 'SubcontractingInwardOrder', 'SubcontractingBom', '@job-work'] },

@@ -7,6 +7,10 @@ import { startLanguage } from './i18n.js';
 import { AuthProvider } from './context/Auth.jsx';
 import { MetaProvider } from './context/Meta.jsx';
 import './index.css';
+import { ToastProvider } from './components/ui.jsx';
+import { applyTheme } from './theme.js';
+
+applyTheme();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,11 +26,13 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AuthProvider>
-          <MetaProvider>
-            <App />
-          </MetaProvider>
-        </AuthProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <MetaProvider>
+              <App />
+            </MetaProvider>
+          </AuthProvider>
+        </ToastProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,

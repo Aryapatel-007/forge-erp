@@ -5,7 +5,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { downloadFile, getList, post, queryString } from '../../api/client.js';
 import { Icon } from '../../components/icons.jsx';
-import { Badge, Button, Card, ErrorBox, Input, MenuButton, MoreMenu, PageHeader, Select, Spinner, Table } from '../../components/ui.jsx';
+import { Badge, Button, Card, ErrorBox, Input, MenuButton, MoreMenu, PageHeader, Select, Spinner, Table, useToast } from '../../components/ui.jsx';
 import { useAllowed, useResource } from '../../config/useResource.js';
 import { NotFoundPage } from '../../components/NotFoundPage.jsx';
 import { isStarred, noteVisit, toggleStar } from '../../utils/recents.js';
@@ -20,6 +20,7 @@ export function ListPage({ resource: fixed }) {
   const config = useResource(key);
   const allowed = useAllowed(config);
   const [isImporting, setIsImporting] = useState(false);
+  const toast = useToast();
   const [bulkResult, setBulkResult] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -61,7 +62,9 @@ export function ListPage({ resource: fixed }) {
     if (!window.confirm(`Submit ${draftsHere.length} drafts on this page? This posts them.`)) return;
     setBulkResult(null);
     try {
-      setBulkResult(await post(`${config.endpoint}/bulk`, { action: 'submit', ids: draftsHere }));
+      const result = await post(`${config.endpoint}/bulk`, { action: 'submit', ids: draftsHere });
+      setBulkResult(result);
+      toast(`${result.done} submitted${result.failed ? `, ${result.failed} not` : ''}`, result.failed ? 'warn' : 'ok');
     } catch (error) {
       setBulkResult({ error });
     }

@@ -9,9 +9,13 @@ export function SetupGuide() {
   if (query.isLoading) return <Spinner />;
   if (query.error) return <ErrorBox error={query.error} />;
   const { steps, doneCount, total } = query.data;
+  const next = steps.find((s) => !s.done && !s.optional) ?? steps.find((s) => !s.done);
   return (
     <>
-      <PageHeader title="Going live" subtitle={`${doneCount} of ${total} done`} />
+      <PageHeader title="Going live" subtitle={`${doneCount} of ${total} done`} actions={next ? <Link to={next.to} className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-strong">Next: {next.label}</Link> : null} />
+      <div className="mb-4 h-2 w-full overflow-hidden rounded-full bg-card ring-1 ring-line">
+        <div className="h-full rounded-full bg-accent" style={{ width: `${Math.round((doneCount / total) * 100)}%` }} />
+      </div>
       <Card>
         <ol className="divide-y divide-line">
           {steps.map((step, index) => (

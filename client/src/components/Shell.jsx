@@ -11,6 +11,7 @@ import { useMeta } from '../context/Meta.jsx';
 import { allDestinations, appForPath, buildApps, createItems } from '../config/apps.js';
 import { buildDepartment, COMPANY_ROLES } from '../config/departments.js';
 import { currentLanguage, LANGUAGES, setLanguage } from '../i18n.js';
+import { currentTheme, setTheme } from '../theme.js';
 import { formatDateTime } from '../utils/format.js';
 import { Icon } from './icons.jsx';
 import { Menu, MenuButton, MenuLink, MenuTitle, Select } from './ui.jsx';
@@ -150,6 +151,12 @@ function UserMenu({ user, signOut }) {
             <label className="block text-xs text-steel" htmlFor="language">Language</label>
             <Select id="language" className="mt-1" defaultValue={currentLanguage()} onChange={(e) => setLanguage(e.target.value)}>
               {LANGUAGES.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+            </Select>
+            <label className="mt-2 block text-xs text-steel" htmlFor="theme">Appearance</label>
+            <Select id="theme" className="mt-1" defaultValue={currentTheme()} onChange={(e) => setTheme(e.target.value)}>
+              <option value="system">As the device is set</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
             </Select>
           </div>
           <MenuButton onClick={signOut}><Icon name="logout" size={16} />Sign out</MenuButton>

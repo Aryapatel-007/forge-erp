@@ -41,12 +41,13 @@ every session. Last updated 2026-11-08.
 | Limits on core documents, backward scheduling, OEE, standard cost, bulk submit, website, translations, POP3 mail, SMS, exchange rates, bank statements, Razorpay links, backup copy | `tests/channels.test.js` | 18 pass, against local stand-ins for outside services |
 | Drawing vault: pictures, push and pull with the version a change started from (BEHIND refused), access rules and tasks from the maintainer, locks, review and release, folder import, PCs working as their person, the PC kit | `tests/vault.test.js` | 11 pass |
 | Features switched off, role screens enforced on the server, the shop-floor operator role | `tests/policy.test.js` | 4 pass |
+| Order journeys: 22 steps per machine order, steps ticked from the records, each department's own steps, what waits on whom, planned dates meeting the delivery date, the Projects and Validation roles | `tests/journey.test.js` | 5 pass |
 | The server loads in production order | `tests/boot.test.js` | 2 pass |
 | Demo seed through the real services | Run on a throwaway database, then dropped | Works |
 | Client production build | `npm run build` | Compiles |
 | All 128 runner reports and the new routes on the running server, admin login | API calls | All respond, integrity OK |
 
-Tests run file by file against a real replica set: 202 in all, each passing on its last run. After the policy change, boot, engine, erp and depth were run again: all pass.
+Tests run file by file against a real replica set: 207 in all, each passing on its last run. After the policy change, boot, engine, erp and depth were run again: all pass.
 `npm test` as one command has not been run.
 
 ## Not checked
@@ -56,7 +57,7 @@ Tests run file by file against a real replica set: 202 in all, each passing on i
   with a PreviewPNG stream, ASCII DXF). SOLIDWORKS 2015 and later is read by finding a PNG
   whose checksums are right, which may find none. A file with no picture is still kept and
   versioned.
-- **The new screens (Maintainer, features, role screens, vault access and tasks, push and pull) were built but not looked at in a browser.**
+- **Dark mode, the confirmations and the other additions to the screens compile and every page imports what it uses, but none has been looked at in a browser yet.**
 - **Nothing on the Windows side of the vault has run yet.** No Windows PC, PowerShell or C#
   compiler was available here. It needs a first run on a Windows PC with SOLIDWORKS:
   - `server/assets/ForgeVaultSync.ps1`: the Forge Vault folder in Explorer's left panel

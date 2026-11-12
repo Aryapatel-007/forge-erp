@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { get, patch, post } from '../../api/client.js';
-import { Button, Card, ErrorBox, PageHeader, Spinner } from '../../components/ui.jsx';
+import { Button, Card, ErrorBox, PageHeader, Spinner, useToast } from '../../components/ui.jsx';
 import { useAllowed, useResource } from '../../config/useResource.js';
 import { NotFoundPage } from '../../components/NotFoundPage.jsx';
 import { FormField, initialValues, LinesEditor, toFormValue, toPayload } from './fields.jsx';
@@ -36,6 +36,7 @@ export function FormPage() {
   const queryClient = useQueryClient();
   const [values, setValues] = useState(null);
   const [localError, setLocalError] = useState(null);
+  const toast = useToast();
 
   const fields = useMemo(() => (config?.fields ?? []).filter((field) => (isEdit ? !field.createOnly : !field.editOnly)), [config, isEdit]);
 
@@ -69,6 +70,7 @@ export function FormPage() {
   const save = useMutation({
     mutationFn: async (payload) => (isEdit ? patch(`${config.endpoint}/${id}`, payload) : post(config.endpoint, payload)),
     onSuccess: (saved) => {
+      toast(isEdit ? 'Saved' : `${config.single} saved`);
       queryClient.invalidateQueries({ queryKey: ['list', resource] });
       queryClient.invalidateQueries({ queryKey: ['doc', resource, saved.id] });
       navigate(`/${resource}/${saved.id}`, { replace: true });

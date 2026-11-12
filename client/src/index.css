@@ -23,6 +23,34 @@
   --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
 }
 
+/* Dark: as the device is set, unless the person chose Light or Dark in their account menu. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  --color-paper: #0f1312; --color-card: #181d1c; --color-ink: #e6eae9; --color-steel: #9aa5a2;
+  --color-line: #29302e; --color-line-strong: #38403e; --color-rail: #0a0d0c; --color-rail-text: #b7c0bd;
+  --color-accent: #3fb3a6; --color-accent-strong: #5cc8bb; --color-accent-soft: #15302d;
+  --color-ok: #4cc27f; --color-ok-soft: #12291c; --color-warn: #e3a64a; --color-warn-soft: #2e2311;
+  --color-danger: #f07167; --color-danger-soft: #331816;
+  color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --color-paper: #0f1312; --color-card: #181d1c; --color-ink: #e6eae9; --color-steel: #9aa5a2;
+  --color-line: #29302e; --color-line-strong: #38403e; --color-rail: #0a0d0c; --color-rail-text: #b7c0bd;
+  --color-accent: #3fb3a6; --color-accent-strong: #5cc8bb; --color-accent-soft: #15302d;
+  --color-ok: #4cc27f; --color-ok-soft: #12291c; --color-warn: #e3a64a; --color-warn-soft: #2e2311;
+  --color-danger: #f07167; --color-danger-soft: #331816;
+  color-scheme: dark;
+}
+
+/* Printed documents look the same whatever the screen theme. */
+.force-light {
+  --color-paper: #f4f4f1; --color-card: #ffffff; --color-ink: #1b2120; --color-steel: #5f6967;
+  --color-line: #e4e4df; --color-line-strong: #cfd0ca; --color-accent: #0e5f58; --color-accent-soft: #e0efec;
+  color-scheme: light;
+  color: var(--color-ink);
+}
+
 html, body, #root { height: 100%; }
 body {
   background: var(--color-paper);
