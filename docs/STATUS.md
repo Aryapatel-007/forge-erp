@@ -71,7 +71,7 @@ Tests run file by file against a real replica set: 207 in all, each passing on i
     their behaviour across SOLIDWORKS versions was not confirmed. Making released files read-only on disk works on a normal drive, but the
   phone's shared storage ignores it, as Windows shares without permission to change
   attributes will too. The vault's own copy is protected either way.
-- **The Windows setup program has never been run on Windows.** `packaging/windows/build.sh`
+- **The Windows setup program has never been run on Windows.** Since 1.2.0 it downloads Node.js 26.13.1 and MongoDB 9.0.8, which Forge's tests have not run against (they run on Node 22 and MongoDB 7), and it picks free ports (4100 and 27217 unless taken). `packaging/windows/build.sh`
   builds `ForgeERP-Setup-<version>-x64.exe` here, but this phone cannot run it. Its downloads
   are pinned to the checksums Node.js and MongoDB publish, and the zip paths inside them
   were read from the real files. The wizard, the services and the uninstaller need one full

@@ -12,7 +12,7 @@ SetCompressor /SOLID lzma
 !endif
 !define APP "Forge ERP"
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\ForgeERP"
-!define APPURL "http://localhost:4100/"
+; The web address is known only once setup has picked a free port: see $AppUrl.
 
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
@@ -51,6 +51,8 @@ Var Pass2Box
 Var NetBox
 Var Node
 Var Setup
+Var AppPort
+Var AppUrl
 
 !define MUI_ICON "${BUILD}/forge.ico"
 !define MUI_UNICON "${BUILD}/forge.ico"
@@ -65,7 +67,7 @@ Var Setup
 Page custom AccountPage AccountLeave
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_TITLE "${APP} is ready"
-!define MUI_FINISHPAGE_TEXT "${APP} runs in the background and starts with Windows.$\r$\n$\r$\nOpen it from the desktop or the Start menu, or go to ${APPURL} in your browser."
+!define MUI_FINISHPAGE_TEXT "${APP} runs in the background and starts with Windows.$\r$\n$\r$\nOpen it from the desktop or the Start menu, or go to $AppUrl in your browser."
 !define MUI_FINISHPAGE_RUN
 !define MUI_FINISHPAGE_RUN_TEXT "Open ${APP} now"
 !define MUI_FINISHPAGE_RUN_FUNCTION OpenForge
@@ -136,7 +138,7 @@ Function AccountPage
   ${If} $AllowNetwork == ${BST_CHECKED}
     ${NSD_Check} $NetBox
   ${EndIf}
-  ${NSD_CreateLabel} 0 106u 100% 26u "Leave this off if only this computer will use ${APP}. Turning it on opens port 4100 in Windows Firewall, and others then reach it at this computer's address."
+  ${NSD_CreateLabel} 0 106u 100% 26u "Leave this off if only this computer will use ${APP}. Turning it on opens Forge's port (4100, or the next free one) in Windows Firewall, and others then reach it at this computer's address."
   Pop $0
   nsDialogs::Show
 FunctionEnd
@@ -232,7 +234,20 @@ Section "${APP}" SecMain
   ${Else}
     StrCpy $1 "127.0.0.1"
   ${EndIf}
-  !insertmacro Run '$Node $Setup prepare --data "$DataDir" --host $1' "Setup could not write the settings."
+  !insertmacro Run '$Node $Setup prepare --data "$DataDir" --host $1 --pick-ports' "Setup could not write the settings."
+  ; The port setup chose: 4100 if it was free, otherwise the next free one.
+  StrCpy $AppPort "4100"
+  ClearErrors
+  FileOpen $R8 "$DataDir\port.txt" r
+  ${IfNot} ${Errors}
+    FileRead $R8 $R7
+    FileClose $R8
+    ${If} $R7 != ""
+      StrCpy $AppPort $R7
+    ${EndIf}
+  ${EndIf}
+  StrCpy $AppUrl "http://localhost:$AppPort/"
+  DetailPrint "Forge ERP will be at $AppUrl"
 
   DetailPrint "Starting the database service."
   nsExec::ExecToLog 'sc query ForgeDB'
@@ -294,16 +309,16 @@ Section "${APP}" SecMain
   nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="Forge ERP"'
   Pop $0
   ${If} $AllowNetwork == ${BST_CHECKED}
-    DetailPrint "Opening port 4100 in Windows Firewall."
-    nsExec::ExecToLog 'netsh advfirewall firewall add rule name="Forge ERP" dir=in action=allow protocol=TCP localport=4100'
+    DetailPrint "Opening port $AppPort in Windows Firewall."
+    nsExec::ExecToLog 'netsh advfirewall firewall add rule name="Forge ERP" dir=in action=allow protocol=TCP localport=$AppPort'
     Pop $0
   ${EndIf}
 
   CreateDirectory "$SMPROGRAMS\Forge ERP"
-  CreateShortCut "$SMPROGRAMS\Forge ERP\Forge ERP.lnk" "$WINDIR\explorer.exe" "${APPURL}" "$INSTDIR\forge.ico" 0
+  CreateShortCut "$SMPROGRAMS\Forge ERP\Forge ERP.lnk" "$WINDIR\explorer.exe" "$AppUrl" "$INSTDIR\forge.ico" 0
   CreateShortCut "$SMPROGRAMS\Forge ERP\Forge ERP data and backups.lnk" "$DataDir"
   CreateShortCut "$SMPROGRAMS\Forge ERP\Uninstall Forge ERP.lnk" "$INSTDIR\Uninstall.exe"
-  CreateShortCut "$DESKTOP\Forge ERP.lnk" "$WINDIR\explorer.exe" "${APPURL}" "$INSTDIR\forge.ico" 0
+  CreateShortCut "$DESKTOP\Forge ERP.lnk" "$WINDIR\explorer.exe" "$AppUrl" "$INSTDIR\forge.ico" 0
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   WriteRegStr HKLM "${UNINSTKEY}" "DisplayName" "${APP}"
@@ -311,7 +326,7 @@ Section "${APP}" SecMain
   WriteRegStr HKLM "${UNINSTKEY}" "Publisher" "${APP}"
   WriteRegStr HKLM "${UNINSTKEY}" "DisplayIcon" "$INSTDIR\forge.ico"
   WriteRegStr HKLM "${UNINSTKEY}" "InstallLocation" "$INSTDIR"
-  WriteRegStr HKLM "${UNINSTKEY}" "URLInfoAbout" "${APPURL}"
+  WriteRegStr HKLM "${UNINSTKEY}" "URLInfoAbout" "$AppUrl"
   WriteRegStr HKLM "${UNINSTKEY}" "UninstallString" '"$INSTDIR\Uninstall.exe"'
   WriteRegStr HKLM "${UNINSTKEY}" "QuietUninstallString" '"$INSTDIR\Uninstall.exe" /S'
   WriteRegDWORD HKLM "${UNINSTKEY}" "NoModify" 1
@@ -322,7 +337,7 @@ Section "${APP}" SecMain
 SectionEnd
 
 Function OpenForge
-  ExecShell "open" "${APPURL}"
+  ExecShell "open" "$AppUrl"
 FunctionEnd
 
 Function un.onInit

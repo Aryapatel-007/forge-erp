@@ -27,20 +27,20 @@ function Say($text) {
 
 $downloads = @(
   @{
-    Name = 'Node.js 22.23.4'; Size = '36 MB'
-    Url = 'https://nodejs.org/dist/v22.23.4/node-v22.23.4-win-x64.zip'
-    Sha256 = 'cbc74b5e0982c9dbb41525fd8fb5dcd32fbee237863f7829072f4639a1ce5f20'
-    File = 'node-v22.23.4-win-x64.zip'
-    Extract = @(@{ Member = 'node-v22.23.4-win-x64/node.exe'; Target = 'runtime\node\node.exe' })
+    Name = 'Node.js 26.13.1'; Size = '39 MB'
+    Url = 'https://nodejs.org/dist/v26.13.1/node-v26.13.1-win-x64.zip'
+    Sha256 = 'e2edda75bfb089654705cf65a13b58933bfd5f57148e8ebda916f58a2474f1f7'
+    File = 'node-v26.13.1-win-x64.zip'
+    Extract = @(@{ Member = 'node-v26.13.1-win-x64/node.exe'; Target = 'runtime\node\node.exe' })
   },
   @{
-    Name = 'MongoDB 7.0.14'; Size = '620 MB'
-    Url = 'https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-7.0.14.zip'
-    Sha256 = '59aa714af531e2b68ce01fa1be9999435fb9bc2b2002439f3271470113bdf7fe'
-    File = 'mongodb-windows-x86_64-7.0.14.zip'
+    Name = 'MongoDB 9.0.8'; Size = '946 MB'
+    Url = 'https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-9.0.8.zip'
+    Sha256 = 'ee18c81847efebd869564e8ec42ca37b0cac7fe353c321969c5db16c3b7e4e8e'
+    File = 'mongodb-windows-x86_64-9.0.8.zip'
     Extract = @(
-      @{ Member = 'mongodb-win32-x86_64-windows-7.0.14/bin/mongod.exe'; Target = 'runtime\mongodb\mongod.exe' },
-      @{ Member = 'mongodb-win32-x86_64-windows-7.0.14/bin/vc_redist.x64.exe'; Target = 'runtime\mongodb\vc_redist.x64.exe' }
+      @{ Member = 'mongodb-win32-x86_64-windows-9.0.8/bin/mongod.exe'; Target = 'runtime\mongodb\mongod.exe' },
+      @{ Member = 'mongodb-win32-x86_64-windows-9.0.8/bin/vc_redist.x64.exe'; Target = 'runtime\mongodb\vc_redist.x64.exe' }
     )
   }
 )

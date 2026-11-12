@@ -1,10 +1,15 @@
 // Run by the Windows and Mac setup programs, not by hand. Each step is safe to run again, so an
 // update or a repair reuses what is there and never replaces the database or the secrets.
-//   node windowsSetup.js prepare     --data <dir> [--host 127.0.0.1|0.0.0.0|keep]
+//   node windowsSetup.js prepare     --data <dir> [--host 127.0.0.1|0.0.0.0|keep] [--pick-ports]
+//
+// With --pick-ports (the Windows setup), Forge and its database take 4100 and 27217 if they
+// are free, and otherwise the next free ports. An update keeps the ports it had, unless
+// another program has taken one since. The chosen web port is written to port.txt.
 //   node windowsSetup.js replset     --data <dir>
 //   node windowsSetup.js wait-ready  --data <dir>
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import net from 'node:net';
 import path from 'node:path';
 import mongoose from 'mongoose';
 
@@ -34,12 +39,40 @@ function readEnv() {
   return new Map(rows.map((line) => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]));
 }
 
+// True if nothing on this computer is listening on the port, on any address.
+function isFree(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.once('error', () => resolve(false));
+    server.once('listening', () => server.close(() => resolve(true)));
+    server.listen(port, '0.0.0.0');
+  });
+}
+
+async function freePort(wanted, avoid = []) {
+  for (let port = wanted; port < wanted + 200; port += 1) {
+    if (!avoid.includes(port) && await isFree(port)) return port;
+  }
+  fail(`No free port between ${wanted} and ${wanted + 199}.`);
+}
+
+const dbPortOf = (uri) => Number((/127\.0\.0\.1:(\d+)/.exec(uri ?? '') ?? [])[1] ?? DB_PORT);
+
 // Settings and folders. Secrets are made once and kept, so sessions survive an update.
-function prepare() {
+async function prepare() {
   for (const folder of ['db', 'logs', 'backups']) fs.mkdirSync(path.join(dataDir, folder), { recursive: true });
   const env = readEnv();
   const keep = (key, value) => { if (!env.has(key)) env.set(key, value); };
   keep('NODE_ENV', 'production');
+  if (args.includes('--pick-ports')) {
+    // Setup stopped Forge's own services before this, so a busy port is someone else's.
+    const appPort = await freePort(Number(env.get('PORT') ?? APP_PORT));
+    const dbPort = await freePort(dbPortOf(env.get('MONGO_URI')), [appPort]);
+    if (env.has('PORT') && Number(env.get('PORT')) !== appPort) console.log(`Port ${env.get('PORT')} is now taken, so Forge moves to ${appPort}.`);
+    env.set('PORT', String(appPort));
+    env.set('MONGO_URI', `mongodb://127.0.0.1:${dbPort}/forge-erp?replicaSet=rs0`);
+    console.log(`Forge will use port ${appPort}, and its database port ${dbPort}.`);
+  }
   keep('PORT', String(APP_PORT));
   keep('MONGO_URI', `mongodb://127.0.0.1:${DB_PORT}/forge-erp?replicaSet=rs0`);
   keep('JWT_ACCESS_SECRET', crypto.randomBytes(48).toString('base64url'));
@@ -53,6 +86,8 @@ function prepare() {
   else keep('HOST', '127.0.0.1');
   const text = ['# Forge ERP settings. Written by setup. Keep this file private: it holds the sign-in secrets.', ...[...env].map(([key, value]) => `${key}=${value}`), ''].join('\n');
   fs.writeFileSync(envFile, text, { mode: 0o600 });
+  fs.writeFileSync(path.join(dataDir, 'port.txt'), env.get('PORT'));
+  const dbPort = dbPortOf(env.get('MONGO_URI'));
 
   // Rewritten every time, so a repair puts it right.
   const quote = (value) => `'${value.replace(/'/g, "''")}'`;
@@ -68,7 +103,7 @@ function prepare() {
     '  logAppend: true',
     'net:',
     '  bindIp: 127.0.0.1',
-    `  port: ${DB_PORT}`,
+    `  port: ${dbPort}`,
     'replication:',
     '  replSetName: rs0',
     '',
@@ -78,7 +113,8 @@ function prepare() {
 
 // Transactions need a replica set, even a set of one.
 async function replset() {
-  const client = new mongoose.mongo.MongoClient(`mongodb://127.0.0.1:${DB_PORT}/?directConnection=true`, { serverSelectionTimeoutMS: 3000 });
+  const dbPort = dbPortOf(readEnv().get('MONGO_URI'));
+  const client = new mongoose.mongo.MongoClient(`mongodb://127.0.0.1:${dbPort}/?directConnection=true`, { serverSelectionTimeoutMS: 3000 });
   let connected = false;
   for (let i = 0; i < 40 && !connected; i += 1) {
     try {
@@ -95,7 +131,7 @@ async function replset() {
     console.log('The database is already set up.');
   } catch (error) {
     if (error.code !== 94) throw error;
-    await admin.command({ replSetInitiate: { _id: 'rs0', members: [{ _id: 0, host: `127.0.0.1:${DB_PORT}` }] } });
+    await admin.command({ replSetInitiate: { _id: 'rs0', members: [{ _id: 0, host: `127.0.0.1:${dbPort}` }] } });
     console.log('Set up the database.');
   }
   for (let i = 0; i < 40; i += 1) {
@@ -129,7 +165,7 @@ async function waitReady() {
 }
 
 try {
-  if (step === 'prepare') prepare();
+  if (step === 'prepare') await prepare();
   else if (step === 'replset') await replset();
   else if (step === 'wait-ready') await waitReady();
   else fail(`Unknown step: ${step}`);
