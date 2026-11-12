@@ -1,5 +1,10 @@
 # Fetches what Forge needs to run, checks each download against the checksum its maker
 # publishes, and keeps only the files it uses. The setup program runs this, not a person.
+#
+# Downloads are tried three ways, because offices differ: Windows' own background transfer
+# (BITS, which follows the PC's proxy settings and survives a dropped connection), then
+# curl, then a plain .NET download through the PC's proxy. Whatever fails is written to
+# %TEMP%\forge-setup\setup.log, so the reason is never lost.
 param(
   [Parameter(Mandatory = $true)][string]$InstallDir
 )
@@ -9,8 +14,16 @@ $ProgressPreference = 'SilentlyContinue'
 
 $work = Join-Path $env:TEMP 'forge-setup'
 New-Item -ItemType Directory -Force -Path $work | Out-Null
+$log = Join-Path $work 'setup.log'
 $runtime = Join-Path $InstallDir 'runtime'
 New-Item -ItemType Directory -Force -Path $runtime | Out-Null
+
+# Straight to the setup window's list, not to the pipeline: in PowerShell, anything a
+# function writes to the pipeline becomes part of what it returns.
+function Say($text) {
+  [Console]::Out.WriteLine($text)
+  try { Add-Content -Path $log -Value ((Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + '  ' + $text) } catch {}
+}
 
 $downloads = @(
   @{
@@ -46,33 +59,105 @@ function Test-Done($item) {
 }
 
 function Test-Hash($path, $want) {
+  if (-not (Test-Path $path)) { return $false }
   return ((Get-FileHash -Algorithm SHA256 -Path $path).Hash.ToLower() -eq $want)
+}
+
+# The proxy this PC uses for an address, as set in Windows, or nothing for a direct line.
+function Get-ProxyFor($url) {
+  try {
+    $target = New-Object Uri $url
+    $via = [System.Net.WebRequest]::GetSystemWebProxy().GetProxy($target)
+    if ($via -and $via.AbsoluteUri -ne $target.AbsoluteUri) { return $via.AbsoluteUri }
+  } catch {}
+  return $null
+}
+
+# 1. Windows' background transfer. Follows the PC's proxy, resumes after a drop.
+function Try-Bits($item, $path) {
+  try {
+    Import-Module BitsTransfer -ErrorAction Stop
+    $job = Start-BitsTransfer -Source $item.Url -Destination $path -Asynchronous -Priority Foreground -DisplayName "Forge ERP setup: $($item.Name)" -ErrorAction Stop
+    $lastReport = Get-Date
+    $lastBytes = -1
+    $stalledSince = Get-Date
+    while ($true) {
+      Start-Sleep -Seconds 2
+      $state = "$($job.JobState)"
+      if ($state -eq 'Transferred') { Complete-BitsTransfer -BitsJob $job; return $true }
+      if ($state -eq 'Error' -or $state -eq 'Cancelled') { break }
+      if ($job.BytesTransferred -ne $lastBytes) { $lastBytes = $job.BytesTransferred; $stalledSince = Get-Date }
+      # Nothing moved for five minutes: give the next way a chance.
+      if (((Get-Date) - $stalledSince).TotalMinutes -ge 5) { $state = 'stalled'; break }
+      if (((Get-Date) - $lastReport).TotalSeconds -ge 15 -and $job.BytesTotal -gt 0 -and $job.BytesTotal -lt [UInt64]::MaxValue) {
+        $lastReport = Get-Date
+        Say ('  {0} MB of {1} MB' -f [math]::Floor($job.BytesTransferred / 1MB), [math]::Floor($job.BytesTotal / 1MB))
+      }
+    }
+    Say "  Windows background download stopped: $state $($job.ErrorDescription)"
+    Remove-BitsTransfer -BitsJob $job -ErrorAction SilentlyContinue
+  } catch {
+    Say "  Windows background download is not available here: $($_.Exception.Message)"
+  }
+  return $false
+}
+
+# 2. curl, which comes with Windows 10 and 11.
+function Try-Curl($item, $path) {
+  # Windows PowerShell 5 turns a native program's error text into a crash when errors stop
+  # the script, so this step reads curl's errors as plain text instead.
+  $ErrorActionPreference = 'Continue'
+  $curl = Join-Path $env:SystemRoot 'System32\curl.exe'
+  if (-not (Test-Path $curl)) { Say '  curl is not on this PC.'; return $false }
+  $version = (& $curl --version 2>$null | Select-Object -First 1) -replace '^curl (\d+)\.(\d+).*$', '$1.$2'
+  $flags = @('--location', '--fail', '--silent', '--show-error', '--connect-timeout', '30', '--retry', '5', '--retry-delay', '5', '--continue-at', '-', '--output', $path)
+  # Many office networks block the certificate revocation check, which stops curl on Windows.
+  $flags += '--ssl-no-revoke'
+  try { if ([version]$version -ge [version]'7.71') { $flags += '--retry-all-errors' } } catch {}
+  $proxy = Get-ProxyFor $item.Url
+  if ($proxy) { $flags += @('--proxy', $proxy, '--proxy-anyauth', '--proxy-user', ':'); Say "  Using this PC's proxy, $proxy" }
+  $out = (& $curl @flags $item.Url 2>&1 | ForEach-Object { "$_" }) -join ' '
+  if ($LASTEXITCODE -eq 0) { return $true }
+  Say "  curl could not download it (code $LASTEXITCODE): $out"
+  return $false
+}
+
+# 3. A plain download through the PC's proxy, signed in as this Windows user.
+function Try-DotNet($item, $path) {
+  try {
+    $client = New-Object System.Net.WebClient
+    $client.Proxy = [System.Net.WebRequest]::GetSystemWebProxy()
+    $client.Proxy.Credentials = [System.Net.CredentialCache]::DefaultNetworkCredentials
+    $client.DownloadFile($item.Url, $path)
+    return $true
+  } catch {
+    Say "  The plain download failed too: $($_.Exception.Message)"
+    return $false
+  }
 }
 
 function Get-Download($item) {
   $path = Join-Path $work $item.File
-  if ((Test-Path $path) -and (Test-Hash $path $item.Sha256)) { return $path }
-  if (Test-Path $path) { Remove-Item $path -Force }
-  Write-Output "Downloading $($item.Name), $($item.Size). This can take several minutes."
-  $curl = Join-Path $env:SystemRoot 'System32\curl.exe'
-  if (Test-Path $curl) {
-    & $curl --location --fail --silent --show-error --retry 3 --output $path $item.Url
-    if ($LASTEXITCODE -ne 0) { throw "The download of $($item.Name) failed (curl $LASTEXITCODE)." }
-  } else {
-    Invoke-WebRequest -Uri $item.Url -OutFile $path -UseBasicParsing
+  if (Test-Hash $path $item.Sha256) { Say "$($item.Name) was downloaded before and is intact."; return $path }
+  Say "Downloading $($item.Name), $($item.Size). This can take several minutes."
+  foreach ($way in @('Try-Bits', 'Try-Curl', 'Try-DotNet')) {
+    if (& $way $item $path) {
+      if (Test-Hash $path $item.Sha256) {
+        Say "$($item.Name) matches its published checksum."
+        return $path
+      }
+      Say "  The file that arrived does not match the published checksum, so it was not used."
+      Remove-Item $path -Force -ErrorAction SilentlyContinue
+    }
   }
-  if (-not (Test-Hash $path $item.Sha256)) {
-    Remove-Item $path -Force
-    throw "$($item.Name) did not match its published checksum, so it was not used."
-  }
-  Write-Output "$($item.Name) matches its published checksum."
-  return $path
+  throw "$($item.Name) could not be downloaded from $($item.Url). Check that this PC can open that address in a browser. If the office uses a proxy or firewall, it must allow nodejs.org and fastdl.mongodb.org."
 }
 
 try {
+  Say "Forge ERP setup, Windows $([Environment]::OSVersion.Version), 64-bit process: $([Environment]::Is64BitProcess)"
   foreach ($item in $downloads) {
     if (Test-Done $item) {
-      Write-Output "$($item.Name) is already in place."
+      Say "$($item.Name) is already in place."
       continue
     }
     $zip = Get-Download $item
@@ -81,7 +166,7 @@ try {
     New-Item -ItemType Directory -Force -Path $out | Out-Null
     foreach ($entry in $item.Extract) {
       & tar.exe -xf $zip -C $out $entry.Member
-      if ($LASTEXITCODE -ne 0) { throw "Could not unpack $($entry.Member)." }
+      if ($LASTEXITCODE -ne 0) { throw "Could not unpack $($entry.Member) from $zip." }
       $target = Join-Path $InstallDir $entry.Target
       New-Item -ItemType Directory -Force -Path (Split-Path $target) | Out-Null
       Move-Item -Force -Path (Join-Path $out ($entry.Member -replace '/', '\')) -Destination $target
@@ -93,15 +178,15 @@ try {
 
   # MongoDB needs Microsoft's Visual C++ runtime. 1638 means a newer one is already
   # installed, and 3010 that it is installed and takes full effect after a restart.
-  Write-Output 'Installing the Microsoft Visual C++ runtime that MongoDB needs.'
+  Say 'Installing the Microsoft Visual C++ runtime that MongoDB needs.'
   $redist = Join-Path $InstallDir 'runtime\mongodb\vc_redist.x64.exe'
   $process = Start-Process -FilePath $redist -ArgumentList '/install', '/quiet', '/norestart' -Wait -PassThru
   if (@(0, 1638, 3010) -notcontains $process.ExitCode) {
     throw "The Visual C++ runtime did not install (code $($process.ExitCode))."
   }
-  Write-Output 'Everything Forge needs is in place.'
+  Say 'Everything Forge needs is in place.'
   exit 0
 } catch {
-  Write-Output "ERROR: $($_.Exception.Message)"
+  Say "ERROR: $($_.Exception.Message)"
   exit 1
 }

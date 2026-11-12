@@ -215,7 +215,13 @@ Section "${APP}" SecMain
   SetOutPath "$INSTDIR"
 
   DetailPrint "Fetching Node.js and MongoDB, and checking each against its published checksum."
-  !insertmacro Run 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\setup\install-runtime.ps1" -InstallDir "$INSTDIR"' "Setup could not fetch what ${APP} needs. Check the internet connection, then run setup again."
+  ; Setup is a 32-bit program. Sysnative reaches the 64-bit PowerShell, so curl, tar and
+  ; the downloads run as 64-bit, not through Windows' 32-bit redirection.
+  StrCpy $R9 "$WINDIR\sysnative\WindowsPowerShell\v1.0\powershell.exe"
+  ${IfNot} ${FileExists} "$R9"
+    StrCpy $R9 "powershell.exe"
+  ${EndIf}
+  !insertmacro Run '"$R9" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$INSTDIR\setup\install-runtime.ps1" -InstallDir "$INSTDIR"' "Setup could not download Node.js or MongoDB. What went wrong is listed on this page (Show details), and kept in $TEMP\forge-setup\setup.log.$\r$\n$\r$\nIf this PC uses a proxy or firewall, it must allow nodejs.org and fastdl.mongodb.org."
 
   StrCpy $Node '"$INSTDIR\runtime\node\node.exe"'
   StrCpy $Setup '"$INSTDIR\app\server\scripts\windowsSetup.js"'
